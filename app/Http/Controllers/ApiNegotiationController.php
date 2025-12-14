@@ -377,4 +377,72 @@ class ApiNegotiationController extends Controller
 
         return $this->success($negotiations, 'Success');
     }
+
+    
+    /**
+     * Get negotiation with payment details
+     * GET /api/negotiations/{id}/with-payment
+     */
+    public function getNegotiationWithPayment($id)
+    {
+        $user = auth('api')->user();
+        if (!$user) {
+            return $this->error('User not authenticated.');
+        }
+        
+        $negotiation = Negotiation::with(['payment', 'customer', 'driver'])->find($id);
+        
+        if (!$negotiation) {
+            return $this->error('Negotiation not found.');
+        }
+        
+        // Verify user is part of negotiation
+        if ($negotiation->customer_id != $user->id && $negotiation->driver_id != $user->id) {
+            return $this->error('Unauthorized access to this negotiation.');
+        }
+        
+        return $this->success([
+            'negotiation' => $negotiation,
+            'requires_payment' => $negotiation->requiresPayment(),
+            'payment_completed' => $negotiation->isPaymentCompleted(),
+            'payment' => $negotiation->payment,
+        ], 'Negotiation retrieved successfully');
+    }
+    
+    /**
+     * Set agreed price for negotiation
+     * POST /api/negotiations/{id}/set-agreed-price
+     */
+    public function setAgreedPrice(Request $r, $id)
+    {
+        $user = auth('api')->user();
+        if (!$user) {
+            return $this->error('User not authenticated.');
+        }
+        
+        $validator = \Illuminate\Support\Facades\Validator::make($r->all(), [
+            'agreed_price' => 'required|numeric|min:1000|max:1000000',
+        ]);
+        
+        if ($validator->fails()) {
+            return $this->error('Validation failed: ' . implode(', ', $validator->errors()->all()));
+        }
+        
+        $negotiation = Negotiation::find($id);
+        
+        if (!$negotiation) {
+            return $this->error('Negotiation not found.');
+        }
+        
+        // Verify user is part of negotiation
+        if ($negotiation->customer_id != $user->id && $negotiation->driver_id != $user->id) {
+            return $this->error('Unauthorized access to this negotiation.');
+        }
+        
+        $negotiation->agreed_price = $r->agreed_price;
+        $negotiation->payment_status = 'unpaid';
+        $negotiation->save();
+        
+        return $this->success($negotiation, 'Agreed price set successfully');
+    }
 }

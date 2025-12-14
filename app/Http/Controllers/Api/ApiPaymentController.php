@@ -30,7 +30,6 @@ class ApiPaymentController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'negotiation_id' => 'required|exists:negotiations,id',
-            'amount' => 'required|numeric|min:1|max:10000',
         ]);
 
         if ($validator->fails()) {
@@ -43,7 +42,6 @@ class ApiPaymentController extends Controller
 
         try {
             $negotiationId = $request->negotiation_id;
-            $amount = $request->amount;
 
             // Get negotiation with related users
             $negotiation = Negotiation::with(['customer', 'driver'])->find($negotiationId);
@@ -70,6 +68,17 @@ class ApiPaymentController extends Controller
                     'message' => 'Payment already initiated for this negotiation'
                 ], 400);
             }
+
+            // Validate agreed_price exists
+            if (!$negotiation->agreed_price || $negotiation->agreed_price <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No agreed price found for this negotiation. Please agree on a price first.'
+                ], 400);
+            }
+
+            // Use agreed_price from negotiation
+            $amount = $negotiation->agreed_price;
 
             // Get customer and driver
             $customer = $negotiation->customer;
@@ -460,6 +469,38 @@ class ApiPaymentController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while canceling payment',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Get payment by negotiation ID
+     * GET /api/payments/by-negotiation/{negotiationId}
+     */
+    public function getPaymentByNegotiation($negotiationId): JsonResponse
+    {
+        try {
+            $payment = Payment::where('negotiation_id', $negotiationId)
+                ->with(['customer', 'driver', 'transactions'])
+                ->first();
+            
+            if (!$payment) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No payment found for this negotiation'
+                ], 404);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'data' => $payment
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve payment',
                 'error' => $e->getMessage()
             ], 500);
         }

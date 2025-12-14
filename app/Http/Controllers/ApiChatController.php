@@ -237,6 +237,18 @@ class ApiChatController extends Controller
             $neg->status = 'Accepted';
             $neg->customer_accepted = 'Yes';
             $neg->customer_driver = 'Yes';
+            
+            // Extract agreed price from the last accepted negotiation record
+            $lastRecord = NegotiationRecord::where('negotiation_id', $neg->id)
+                ->where('price_accepted', 'Yes')
+                ->orderBy('id', 'desc')
+                ->first();
+            
+            if ($lastRecord && $lastRecord->price > 0) {
+                $neg->agreed_price = $lastRecord->price;
+                $neg->payment_status = 'unpaid'; // Set initial payment status
+            }
+            
             $neg->save();
             return $this->success($neg, 'Success');
         } else  if (

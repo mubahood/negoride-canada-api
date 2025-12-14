@@ -50,6 +50,8 @@ Route::middleware([JwtMiddleware::class])->group(function () {
     Route::get('negotiations-list', [ApiNegotiationController::class, 'index']);
     Route::get('negotiations-test', [ApiNegotiationController::class, 'test']);
     Route::post('negotiations-debug', [ApiNegotiationController::class, 'debugTest']);
+    Route::get('negotiations/{id}/with-payment', [ApiNegotiationController::class, 'getNegotiationWithPayment']);
+    Route::post('negotiations/{id}/set-agreed-price', [ApiNegotiationController::class, 'setAgreedPrice']);
     Route::post("trips-drivers", [ApiAuthController::class, "trips_drivers"]);
     Route::get("users/me", [ApiAuthController::class, "me"]);
     Route::get("users", [ApiAuthController::class, "users"]);
@@ -72,6 +74,7 @@ Route::middleware([JwtMiddleware::class])->group(function () {
     Route::get('payments/{paymentId}', [ApiPaymentController::class, 'getPaymentDetails']);
     Route::post('payments/{paymentId}/refund', [ApiPaymentController::class, 'refundPayment']);
     Route::post('payments/{paymentId}/cancel', [ApiPaymentController::class, 'cancelPayment']);
+    Route::get('payments/by-negotiation/{negotiationId}', [ApiPaymentController::class, 'getPaymentByNegotiation']);
     
     Route::get('api/{model}', [ApiResurceController::class, 'index']);
     Route::get('trips', [ApiResurceController::class, 'trips']);
