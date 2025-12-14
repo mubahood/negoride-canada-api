@@ -13,9 +13,11 @@ class AddIsActiveToNegotiationsTable extends Migration
      */
     public function up()
     {
-        Schema::table('negotiations', function (Blueprint $table) {
-            $table->string('is_active')->default('Yes')->after('status');
-        });
+        if (!Schema::hasColumn('negotiations', 'is_active')) {
+            Schema::table('negotiations', function (Blueprint $table) {
+                $table->boolean('is_active')->default(true)->after('status');
+            });
+        }
     }
 
     /**

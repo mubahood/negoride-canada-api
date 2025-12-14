@@ -61,3 +61,69 @@
 
 17. My full active dashboard to tract all activities
 **→ Build admin dashboard to track all app activities** 
+
+
+<!-- hr -->
+## Features
+# Negoride Canada - Requirements List
+
+[App Configuration]
+app_name = Negoride Canada
+currency = CAD
+
+we are lierarlly we are going to have two types of rides
+1. Rideshare
+    - Rideshare will be stand alone module where drivers will have ability schedule trips/joneys that they are going to take, propose available saets and prices. Customers ordering for ride share will be able to browse a list of the scheduled trips, select a trip that fits their needs and book a seat. this is already implemented in the app. we shall just need to master it later.
+2. Car Hire
+    - Car Hire, drivers will have a bility to go online and wait for customers to request rides. Customers will be able to request rides and get picked from their locations. this is the main module that we have been working on.
+    
+    we shall mainatin ride share and its respective logic as it is. we shall just need to master it later. ✅
+    - Under Car Hire we are basically going to have the following service types. ✅
+        - Rplace boda boda with -> Special Car Hire ✅
+        - replace ambulace with "Airport Pickup" ✅
+        - add Movers ✅
+        - and Courier & Deliveries ✅
+        only the above 4 service types will be under Car Hire module. ✅
+
+    - The logic of Car Hire is also already implemented in the app. we shall just need to master it.
+Please analyze the above two modules and give us feedback if you have any questions.
+Analyze the current code base and understand it very well of how it works and how to make the changes.
+
+let us start with the home page.
+remove "Easily find the cheapest ride with bargaining power in your hand." from the home page. ✅
+remove the buttons below the button of "Order a Ride" on the home page. i.e,remove the button with tax, boda and special. ✅
+relace it with autmaitc text slider that will be showing different service types that we are going to offer. as mentioned above we are going to have the following service types. ✅
+
+
+[Service Types]
+service_1 = Special Car
+service_2 = Taxi and Rideshare
+service_3 = Courier (parcels, goods, and deliveries)
+service_4 = Movers (for moving people and belongings)
+service_5 = Airport Pickup
+
+[Payment Integration]
+payment_methods = In-app Payments, Escrow, Automatic Payouts
+payment_providers = Stripe Connect, PayPal Marketplace
+instant_payout = Stripe Instant (pay drivers on trip completion)
+
+[Features]
+notifications = 10 fully working and active notifications
+audio_recording = Enabled
+terms_and_conditions = Strict and visible
+safety_rules = Strict and visible
+app_policy = Strict and visible
+
+SO HERE IS THE FINAL LIST.
+ 1.⁠ ⁠App name: Negoride canada.
+ 2.⁠ ⁠Special car.
+ 3.⁠ ⁠Taxi and rideshare
+ 4.⁠ ⁠Change bodaboda to Courier [ eg. for parcels, goods, and other deliveries.
+ 5.⁠ ⁠Change ambulance to MOVERS. Movers bebasegula abantu. 
+ 6.⁠ ⁠Add airport pickup.
+ 7.⁠ ⁠Canadian currency.
+ 8.⁠ ⁠In app Payments + Escrow + Automatic payouts( using strip connect and pay pal market place. 
+ 9.⁠ ⁠Integrate instant on stripe. Where we can pay drivers once the trip is completed.
+10.⁠ ⁠10 fully working and active notifications.
+11.⁠ ⁠Strict visible terms and conditions, safely rules, and app policy.
+12.⁠ ⁠Audio recording.

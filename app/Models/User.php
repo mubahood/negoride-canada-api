@@ -98,6 +98,14 @@ class User extends Authenticatable implements JWTSubject
         'date_of_birth' => 'date',
     ];
 
+    /**
+     * Get the user's wallet
+     */
+    public function wallet()
+    {
+        return $this->hasOne(UserWallet::class, 'user_id');
+    }
+
     public function getJWTIdentifier()
     {
         return $this->getKey();

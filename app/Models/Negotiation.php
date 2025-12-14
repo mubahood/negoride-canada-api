@@ -25,7 +25,16 @@ class Negotiation extends Model
         'dropoff_address',
         'records',
         'details',
-        'is_active'
+        'is_active',
+        'agreed_price',
+        'payment_status',
+        'payment_id',
+        'payment_completed_at',
+    ];
+
+    protected $casts = [
+        'agreed_price' => 'decimal:2',
+        'payment_completed_at' => 'datetime',
     ];
 
     //boot
@@ -100,6 +109,30 @@ class Negotiation extends Model
     public function negotiationRecords()
     {
         return $this->hasMany(NegotiationRecord::class, 'negotiation_id');
+    }
+
+    //has one payment
+    public function payment()
+    {
+        return $this->hasOne(Payment::class);
+    }
+
+    //has many transactions
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class);
+    }
+
+    //check if payment is required
+    public function requiresPayment(): bool
+    {
+        return $this->status === 'Accepted' && $this->payment_status === 'unpaid';
+    }
+
+    //check if payment is completed
+    public function isPaymentCompleted(): bool
+    {
+        return $this->payment_status === 'paid';
     }
 
     //get customer phone

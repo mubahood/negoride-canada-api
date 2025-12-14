@@ -346,25 +346,49 @@ class ApiAuthController extends Controller
             'police', 
             'firebrugade', 
             'delivery', 
-            'breakdown'
+            'breakdown',
+            'special car',
+            'special Car',
+            'special car hire',
+            'airport pickup',
+            'movers',
+            'courier'
         ];
         if (!in_array($_automobileType, $accepted_automobiles)) {
-            return $this->error('Invalid automobile type. Accepted types are: car, boda, ambulance.');
+            return $this->error('Invalid automobile type. Accepted types are: Special Car, Airport Pickup, Movers, Courier.');
         }
         $automobileFieldValue = null;
         $automobileFieldKey = null;
-        if ($_automobileType == 'car') {
+        
+        // Map new service types to existing database fields
+        if ($_automobileType == 'car' || $_automobileType == 'special car' || $_automobileType == 'special car hire') {
+            // Special Car Hire → Car (premium car service)
             $automobileFieldKey = 'is_car';
             $automobileFieldValue = 'is_car_approved';
         } else if ($_automobileType == 'bodaboda' || $_automobileType == 'boda') {
+            // Original Boda
             $automobileFieldKey = 'is_boda';
             $automobileFieldValue = 'is_boda_approved';
-        } else if ($_automobileType == 'ambulance') {
+        } else if ($_automobileType == 'courier') {
+            // Courier → Delivery (courier/parcel service)
+            $automobileFieldKey = 'is_delivery';
+            $automobileFieldValue = 'is_delivery_approved';
+        } else if ($_automobileType == 'movers') {
+            // Movers → Ambulance (large vehicle for moving)
             $automobileFieldKey = 'is_ambulance';
             $automobileFieldValue = 'is_ambulance_approved';
+        } else if ($_automobileType == 'ambulance') {
+            // Original Ambulance
+            $automobileFieldKey = 'is_ambulance';
+            $automobileFieldValue = 'is_ambulance_approved';
+        } else if ($_automobileType == 'airport pickup') {
+            // Airport Pickup → Breakdown (using breakdown for airport service)
+            $automobileFieldKey = 'is_breakdown';
+            $automobileFieldValue = 'is_breakdown_approved';
         } else if ($_automobileType == 'pickup') {
-            $automobileFieldKey = 'is_pickup';
-            $automobileFieldValue = 'is_pickup_approved';
+            // Original Pickup → Breakdown
+            $automobileFieldKey = 'is_breakdown';
+            $automobileFieldValue = 'is_breakdown_approved';
         } else if ($_automobileType == 'police') {
             $automobileFieldKey = 'is_police';
             $automobileFieldValue = 'is_police_approved';

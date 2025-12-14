@@ -5,6 +5,8 @@ use App\Http\Controllers\ApiChatController;
 use App\Http\Controllers\ApiImportantContactsController;
 use App\Http\Controllers\ApiNegotiationController;
 use App\Http\Controllers\ApiResurceController;
+use App\Http\Controllers\Api\ApiPaymentController;
+use App\Http\Controllers\Api\ApiWebhookController;
 use App\Http\Middleware\EnsureTokenIsValid;
 use App\Http\Middleware\JwtMiddleware;
 use Encore\Admin\Auth\Database\Administrator;
@@ -19,6 +21,9 @@ Route::POST("users/register", [ApiAuthController::class, "register"]);
 // Route::POST("otp-verify", [ApiResurceController::class, "otp_verify"]);
 // Route::POST("otp-request", [ApiResurceController::class, "otp_request"]);
 // Route::get("otp-request", [ApiResurceController::class, "otp_request"]);
+
+// Stripe webhooks (must be outside auth middleware)
+Route::post('webhooks/stripe', [ApiWebhookController::class, 'handleStripeWebhook']);
 
 Route::middleware([JwtMiddleware::class])->group(function () {
     Route::get('route-stages', [ApiResurceController::class, 'route_stages']);
@@ -59,6 +64,14 @@ Route::middleware([JwtMiddleware::class])->group(function () {
     Route::post('important-contacts', [App\Http\Controllers\ApiImportantContactsController::class, 'getImportantContacts']);
     Route::post('important-contacts/update-location', [App\Http\Controllers\ApiImportantContactsController::class, 'updateLocation']);
     Route::get('important-contacts/statistics', [App\Http\Controllers\ApiImportantContactsController::class, 'getStatistics']);
+    
+    // Payment endpoints
+    Route::post('payments/initiate', [ApiPaymentController::class, 'initiatePayment']);
+    Route::get('payments/{paymentId}/verify', [ApiPaymentController::class, 'verifyPayment']);
+    Route::get('payments/history', [ApiPaymentController::class, 'paymentHistory']);
+    Route::get('payments/{paymentId}', [ApiPaymentController::class, 'getPaymentDetails']);
+    Route::post('payments/{paymentId}/refund', [ApiPaymentController::class, 'refundPayment']);
+    Route::post('payments/{paymentId}/cancel', [ApiPaymentController::class, 'cancelPayment']);
     
     Route::get('api/{model}', [ApiResurceController::class, 'index']);
     Route::get('trips', [ApiResurceController::class, 'trips']);
