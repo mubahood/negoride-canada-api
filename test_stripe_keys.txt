@@ -1,0 +1,12 @@
+STRIPE TEST KEYS NEEDED:
+
+Go to: https://dashboard.stripe.com/test/apikeys
+
+You need:
+1. Secret key (starts with sk_test_...)
+2. Publishable key (starts with pk_test_...)
+
+Add to .env:
+STRIPE_SECRET=sk_test_YOUR_ACTUAL_KEY_HERE
+STRIPE_KEY=pk_test_YOUR_ACTUAL_KEY_HERE
+STRIPE_WEBHOOK_SECRET=whsec_YOUR_WEBHOOK_SECRET

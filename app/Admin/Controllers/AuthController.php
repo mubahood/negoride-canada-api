@@ -103,23 +103,18 @@ class AuthController extends BaseAuthController
             // Try different phone number fields
             $user = Administrator::where(function($query) use ($identifier, $phoneNumber) {
                 $query->where('phone_number', $identifier)
-                      ->orWhere('phone_number', $phoneNumber)
-                      ->orWhere('phone_number_2', $identifier)
-                      ->orWhere('phone_number_2', $phoneNumber);
+                      ->orWhere('phone_number', $phoneNumber);
                 
                 // Also try with country code variations
                 if (strlen($phoneNumber) >= 9) {
                     // Try with +256 prefix
-                    $query->orWhere('phone_number', '+256' . substr($phoneNumber, -9))
-                          ->orWhere('phone_number_2', '+256' . substr($phoneNumber, -9));
+                    $query->orWhere('phone_number', '+256' . substr($phoneNumber, -9));
                     
                     // Try with 256 prefix
-                    $query->orWhere('phone_number', '256' . substr($phoneNumber, -9))
-                          ->orWhere('phone_number_2', '256' . substr($phoneNumber, -9));
+                    $query->orWhere('phone_number', '256' . substr($phoneNumber, -9));
                     
                     // Try with 0 prefix
-                    $query->orWhere('phone_number', '0' . substr($phoneNumber, -9))
-                          ->orWhere('phone_number_2', '0' . substr($phoneNumber, -9));
+                    $query->orWhere('phone_number', '0' . substr($phoneNumber, -9));
                 }
             })->first();
             

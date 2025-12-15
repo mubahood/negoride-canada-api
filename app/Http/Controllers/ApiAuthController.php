@@ -783,8 +783,6 @@ class ApiAuthController extends Controller
         // Find user by email, phone number, or username
         $u = User::where('email', $identifier)
             ->orWhere('phone_number', $identifier)
-            ->orWhere('phone_number', $identifier)
-            ->orWhere('phone_number_2', $identifier)
             ->orWhere('username', $identifier)
             ->orWhere('id', $identifier)
             ->first();

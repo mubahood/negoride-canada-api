@@ -23,7 +23,7 @@ Route::POST("users/register", [ApiAuthController::class, "register"]);
 // Route::get("otp-request", [ApiResurceController::class, "otp_request"]);
 
 // Stripe webhooks (must be outside auth middleware)
-Route::post('webhooks/stripe', [ApiWebhookController::class, 'handleStripeWebhook']);
+Route::post('webhooks/stripe', [ApiChatController::class, 'stripe_webhook']);
 
 Route::middleware([JwtMiddleware::class])->group(function () {
     Route::get('route-stages', [ApiResurceController::class, 'route_stages']);
@@ -67,14 +67,9 @@ Route::middleware([JwtMiddleware::class])->group(function () {
     Route::post('important-contacts/update-location', [App\Http\Controllers\ApiImportantContactsController::class, 'updateLocation']);
     Route::get('important-contacts/statistics', [App\Http\Controllers\ApiImportantContactsController::class, 'getStatistics']);
     
-    // Payment endpoints
-    Route::post('payments/initiate', [ApiPaymentController::class, 'initiatePayment']);
-    Route::get('payments/{paymentId}/verify', [ApiPaymentController::class, 'verifyPayment']);
-    Route::get('payments/history', [ApiPaymentController::class, 'paymentHistory']);
-    Route::get('payments/{paymentId}', [ApiPaymentController::class, 'getPaymentDetails']);
-    Route::post('payments/{paymentId}/refund', [ApiPaymentController::class, 'refundPayment']);
-    Route::post('payments/{paymentId}/cancel', [ApiPaymentController::class, 'cancelPayment']);
-    Route::get('payments/by-negotiation/{negotiationId}', [ApiPaymentController::class, 'getPaymentByNegotiation']);
+    // Payment endpoint (simple Stripe Payment Links)
+    Route::post('negotiations-refresh-payment', [ApiChatController::class, 'negotiations_refresh_payment']);
+    Route::post('negotiations-check-payment', [ApiChatController::class, 'negotiations_check_payment']);
     
     Route::get('api/{model}', [ApiResurceController::class, 'index']);
     Route::get('trips', [ApiResurceController::class, 'trips']);

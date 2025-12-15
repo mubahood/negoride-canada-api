@@ -79,7 +79,7 @@ class ApiNegotiationController extends Controller
             'dropoff_lat' => 'required|numeric',
             'dropoff_lng' => 'required|numeric',
             'dropoff_address' => 'required|string|max:500',
-            'initial_price' => 'required|numeric|min:1000',
+            'initial_price' => 'required|numeric|min:50', // Minimum $0.50 CAD (Stripe minimum)
             'message_body' => 'required|string|max:1000',
         ]);
 
@@ -132,6 +132,7 @@ class ApiNegotiationController extends Controller
             $negotiation->dropoff_lat = $r->dropoff_lat;
             $negotiation->dropoff_lng = $r->dropoff_lng;
             $negotiation->dropoff_address = $r->dropoff_address;
+            $negotiation->initial_price = (int)$r->initial_price; // Store price in cents
             $negotiation->details = $r->message_body;
             $negotiation->save();
 
