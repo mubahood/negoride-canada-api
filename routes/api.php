@@ -8,6 +8,7 @@ use App\Http\Controllers\ApiResurceController;
 use App\Http\Controllers\Api\ApiPaymentController;
 use App\Http\Controllers\Api\ApiWebhookController;
 use App\Http\Controllers\Api\WalletController;
+use App\Http\Controllers\Api\PayoutAccountController;
 use App\Http\Middleware\EnsureTokenIsValid;
 use App\Http\Middleware\JwtMiddleware;
 use Encore\Admin\Auth\Database\Administrator;
@@ -77,6 +78,16 @@ Route::middleware([JwtMiddleware::class])->group(function () {
     Route::get('wallet/transactions', [WalletController::class, 'getTransactions']);
     Route::get('wallet/summary', [WalletController::class, 'getWalletSummary']);
     Route::get('wallet/earnings', [WalletController::class, 'getEarningsStats']);
+    
+    // Payout Account API endpoints
+    Route::get('payout-account', [PayoutAccountController::class, 'getAccount']);
+    Route::post('payout-account/create-stripe', [PayoutAccountController::class, 'createStripeAccount']);
+    Route::post('payout-account/onboarding-link', [PayoutAccountController::class, 'getOnboardingLink']);
+    Route::get('payout-account/dashboard-link', [PayoutAccountController::class, 'getDashboardLink']);
+    Route::post('payout-account/sync', [PayoutAccountController::class, 'syncAccount']);
+    Route::post('payout-account/preferences', [PayoutAccountController::class, 'updatePreferences']);
+    Route::post('payout-account/deactivate', [PayoutAccountController::class, 'deactivate']);
+    Route::post('payout-account/reactivate', [PayoutAccountController::class, 'reactivate']);
     
     Route::get('api/{model}', [ApiResurceController::class, 'index']);
     Route::get('trips', [ApiResurceController::class, 'trips']);

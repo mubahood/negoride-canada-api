@@ -682,6 +682,7 @@ class ComposerStaticInitda89eef54c810448a827ed04bb3da82f
         'App\\Http\\Controllers\\ApiNegotiationController' => __DIR__ . '/../..' . '/app/Http/Controllers/ApiNegotiationController.php',
         'App\\Http\\Controllers\\ApiResurceController' => __DIR__ . '/../..' . '/app/Http/Controllers/ApiResurceController.php',
         'App\\Http\\Controllers\\Api\\ApiWebhookController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/ApiWebhookController.php',
+        'App\\Http\\Controllers\\Api\\WalletController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/WalletController.php',
         'App\\Http\\Controllers\\Controller' => __DIR__ . '/../..' . '/app/Http/Controllers/Controller.php',
         'App\\Http\\Controllers\\MainController' => __DIR__ . '/../..' . '/app/Http/Controllers/MainController.php',
         'App\\Http\\Kernel' => __DIR__ . '/../..' . '/app/Http/Kernel.php',
