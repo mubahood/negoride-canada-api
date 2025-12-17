@@ -99,11 +99,63 @@ class User extends Authenticatable implements JWTSubject
     ];
 
     /**
+     * Boot method - Auto-create wallet for new users
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Auto-create wallet when user is created
+        static::created(function ($user) {
+            \Log::info('👤 Creating wallet for new user', [
+                'user_id' => $user->id,
+                'name' => $user->name,
+            ]);
+
+            try {
+                UserWallet::create([
+                    'user_id' => $user->id,
+                    'wallet_balance' => 0,
+                    'total_earnings' => 0,
+                ]);
+
+                \Log::info('✅ Wallet created successfully', [
+                    'user_id' => $user->id,
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('❌ Failed to create wallet for user', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        });
+    }
+
+    /**
      * Get the user's wallet
      */
     public function wallet()
     {
         return $this->hasOne(UserWallet::class, 'user_id');
+    }
+
+    /**
+     * Get or create user's wallet
+     */
+    public function getOrCreateWallet()
+    {
+        $wallet = $this->wallet;
+        
+        if (!$wallet) {
+            \Log::info('💼 Creating missing wallet for user', ['user_id' => $this->id]);
+            $wallet = UserWallet::create([
+                'user_id' => $this->id,
+                'wallet_balance' => 0,
+                'total_earnings' => 0,
+            ]);
+        }
+        
+        return $wallet;
     }
 
     public function getJWTIdentifier()

@@ -7,6 +7,7 @@ use App\Http\Controllers\ApiNegotiationController;
 use App\Http\Controllers\ApiResurceController;
 use App\Http\Controllers\Api\ApiPaymentController;
 use App\Http\Controllers\Api\ApiWebhookController;
+use App\Http\Controllers\Api\WalletController;
 use App\Http\Middleware\EnsureTokenIsValid;
 use App\Http\Middleware\JwtMiddleware;
 use Encore\Admin\Auth\Database\Administrator;
@@ -70,6 +71,12 @@ Route::middleware([JwtMiddleware::class])->group(function () {
     // Payment endpoint (simple Stripe Payment Links)
     Route::post('negotiations-refresh-payment', [ApiChatController::class, 'negotiations_refresh_payment']);
     Route::post('negotiations-check-payment', [ApiChatController::class, 'negotiations_check_payment']);
+    
+    // Wallet API endpoints
+    Route::get('wallet', [WalletController::class, 'getWallet']);
+    Route::get('wallet/transactions', [WalletController::class, 'getTransactions']);
+    Route::get('wallet/summary', [WalletController::class, 'getWalletSummary']);
+    Route::get('wallet/earnings', [WalletController::class, 'getEarningsStats']);
     
     Route::get('api/{model}', [ApiResurceController::class, 'index']);
     Route::get('trips', [ApiResurceController::class, 'trips']);

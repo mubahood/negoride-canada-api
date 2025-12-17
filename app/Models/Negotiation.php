@@ -239,7 +239,7 @@ class Negotiation extends Model
     }
 
     /**
-     * Mark payment as completed
+     * Mark payment as completed and distribute funds
      */
     public function markAsPaid(string $stripePaymentId = null): bool
     {
@@ -265,6 +265,9 @@ class Negotiation extends Model
                     'amount' => $this->agreed_price,
                     'stripe_id' => $this->stripe_id,
                 ]);
+
+                // Automatically distribute payment to driver (90%) and company (10%)
+                $this->distributePayment();
             }
 
             return $saved;
@@ -275,6 +278,190 @@ class Negotiation extends Model
             ]);
             return false;
         }
+    }
+
+    /**
+     * Distribute payment: 90% to driver, 10% to company
+     * Creates 2 transactions and updates wallet balances
+     */
+    public function distributePayment(): bool
+    {
+        try {
+            // Check if payment already distributed (idempotency)
+            if ($this->hasPaymentBeenDistributed()) {
+                Log::info('ℹ️ Payment already distributed, skipping', [
+                    'negotiation_id' => $this->id,
+                ]);
+                return true;
+            }
+
+            // Validate agreed price exists and is positive
+            if (!$this->agreed_price || $this->agreed_price <= 0) {
+                Log::warning('⚠️ Cannot distribute payment: invalid agreed_price', [
+                    'negotiation_id' => $this->id,
+                    'agreed_price' => $this->agreed_price,
+                ]);
+                return false;
+            }
+
+            // Get driver
+            $driver = \Encore\Admin\Auth\Database\Administrator::find($this->driver_id);
+            if (!$driver) {
+                Log::error('❌ Driver not found for payment distribution', [
+                    'negotiation_id' => $this->id,
+                    'driver_id' => $this->driver_id,
+                ]);
+                return false;
+            }
+
+            // Use database transaction for atomicity
+            return \DB::transaction(function () use ($driver) {
+                // Calculate amounts (90/10 split)
+                $totalAmount = $this->agreed_price;
+                $driverAmount = round($totalAmount * 0.90, 2); // 90% to driver
+                $companyAmount = round($totalAmount * 0.10, 2); // 10% to company
+
+                Log::info('💸 Distributing payment', [
+                    'negotiation_id' => $this->id,
+                    'total' => $totalAmount,
+                    'driver_amount' => $driverAmount,
+                    'company_amount' => $companyAmount,
+                ]);
+
+                // Get or create driver wallet
+                $driverWallet = UserWallet::firstOrCreate(
+                    ['user_id' => $this->driver_id],
+                    ['wallet_balance' => 0, 'total_earnings' => 0]
+                );
+
+                // Get or create company wallet (user_id = 1 reserved for company)
+                $companyWallet = $this->getOrCreateCompanyWallet();
+
+                // Create driver transaction (90%)
+                $driverTransaction = $this->createDriverTransaction($driverAmount, $driverWallet);
+
+                // Create company transaction (10%)
+                $companyTransaction = $this->createCompanyTransaction($companyAmount, $companyWallet);
+
+                // Update driver wallet
+                $driverWallet->wallet_balance += $driverAmount;
+                $driverWallet->total_earnings += $driverAmount;
+                $driverWallet->save();
+
+                // Update company wallet
+                $companyWallet->wallet_balance += $companyAmount;
+                $companyWallet->total_earnings += $companyAmount;
+                $companyWallet->save();
+
+                Log::info('✅ Payment distributed successfully', [
+                    'negotiation_id' => $this->id,
+                    'driver_transaction_id' => $driverTransaction->id,
+                    'company_transaction_id' => $companyTransaction->id,
+                    'driver_new_balance' => $driverWallet->wallet_balance,
+                    'company_new_balance' => $companyWallet->wallet_balance,
+                ]);
+
+                return true;
+            });
+        } catch (\Exception $e) {
+            Log::error('❌ Payment distribution failed', [
+                'negotiation_id' => $this->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Create driver earning transaction
+     */
+    private function createDriverTransaction(float $amount, UserWallet $wallet): Transaction
+    {
+        $balanceBefore = $wallet->wallet_balance;
+        $balanceAfter = $balanceBefore + $amount;
+        $reference = 'TXN-' . time() . '-' . $this->id . '-DRIVER';
+
+        return Transaction::create([
+            'user_id' => $this->driver_id,
+            'user_type' => 'driver',
+            'payment_id' => null,
+            'type' => 'credit',
+            'category' => 'ride_earning',
+            'amount' => $amount,
+            'balance_before' => $balanceBefore,
+            'balance_after' => $balanceAfter,
+            'reference' => $reference,
+            'description' => "Ride earning from trip #{$this->id} (90%)",
+            'status' => 'completed',
+            'related_user_id' => $this->customer_id,
+            'negotiation_id' => $this->id,
+            'metadata' => json_encode([
+                'payment_type' => 'ride_payment',
+                'percentage' => 90,
+                'total_amount' => $this->agreed_price,
+            ]),
+        ]);
+    }
+
+    /**
+     * Create company commission transaction
+     */
+    private function createCompanyTransaction(float $amount, UserWallet $wallet): Transaction
+    {
+        $balanceBefore = $wallet->wallet_balance;
+        $balanceAfter = $balanceBefore + $amount;
+        $reference = 'TXN-' . time() . '-' . $this->id . '-COMPANY';
+
+        return Transaction::create([
+            'user_id' => 1, // Company wallet ID
+            'user_type' => 'driver', // Company uses driver type
+            'payment_id' => null,
+            'type' => 'credit',
+            'category' => 'service_fee',
+            'amount' => $amount,
+            'balance_before' => $balanceBefore,
+            'balance_after' => $balanceAfter,
+            'reference' => $reference,
+            'description' => "Service fee from trip #{$this->id} (10% commission)",
+            'status' => 'completed',
+            'related_user_id' => $this->customer_id,
+            'negotiation_id' => $this->id,
+            'metadata' => json_encode([
+                'payment_type' => 'service_fee',
+                'percentage' => 10,
+                'total_amount' => $this->agreed_price,
+                'driver_id' => $this->driver_id,
+            ]),
+        ]);
+    }
+
+    /**
+     * Check if payment has already been distributed
+     */
+    private function hasPaymentBeenDistributed(): bool
+    {
+        $existingTransactions = Transaction::where('negotiation_id', $this->id)
+            ->whereIn('category', ['ride_earning', 'service_fee'])
+            ->count();
+
+        return $existingTransactions >= 2; // Should have driver + company transactions
+    }
+
+    /**
+     * Get or create company wallet (user_id = 1 reserved for company)
+     */
+    public static function getOrCreateCompanyWallet(): UserWallet
+    {
+        return UserWallet::firstOrCreate(
+            ['user_id' => 1],
+            [
+                'wallet_balance' => 0,
+                'total_earnings' => 0,
+                'stripe_customer_id' => null,
+                'stripe_account_id' => null,
+            ]
+        );
     }
 
     /**
