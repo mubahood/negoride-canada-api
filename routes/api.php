@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\ApiPaymentController;
 use App\Http\Controllers\Api\ApiWebhookController;
 use App\Http\Controllers\Api\WalletController;
 use App\Http\Controllers\Api\PayoutAccountController;
+use App\Http\Controllers\Api\PayoutRequestController;
 use App\Http\Middleware\EnsureTokenIsValid;
 use App\Http\Middleware\JwtMiddleware;
 use Encore\Admin\Auth\Database\Administrator;
@@ -26,6 +27,10 @@ Route::POST("users/register", [ApiAuthController::class, "register"]);
 
 // Stripe webhooks (must be outside auth middleware)
 Route::post('webhooks/stripe', [ApiChatController::class, 'stripe_webhook']);
+
+// Payout account completion routes (no auth required - Stripe redirects here)
+Route::get('payout-complete', [PayoutAccountController::class, 'payoutComplete']);
+Route::get('payout-refresh', [PayoutAccountController::class, 'payoutRefresh']);
 
 Route::middleware([JwtMiddleware::class])->group(function () {
     Route::get('route-stages', [ApiResurceController::class, 'route_stages']);
@@ -88,6 +93,17 @@ Route::middleware([JwtMiddleware::class])->group(function () {
     Route::post('payout-account/preferences', [PayoutAccountController::class, 'updatePreferences']);
     Route::post('payout-account/deactivate', [PayoutAccountController::class, 'deactivate']);
     Route::post('payout-account/reactivate', [PayoutAccountController::class, 'reactivate']);
+    
+    // Payout Request API endpoints
+    Route::get('payout-requests', [PayoutRequestController::class, 'index']);
+    Route::get('payout-requests/statistics', [PayoutRequestController::class, 'statistics']);
+    Route::post('payout-requests', [PayoutRequestController::class, 'store']);
+    Route::get('payout-requests/{id}', [PayoutRequestController::class, 'show']);
+    Route::post('payout-requests/{id}/cancel', [PayoutRequestController::class, 'cancel']);
+    
+    // Admin only routes (TODO: Add admin middleware)
+    Route::get('admin/payout-requests', [PayoutRequestController::class, 'adminIndex']);
+    Route::post('admin/payout-requests/{id}/process', [PayoutRequestController::class, 'process']);
     
     Route::get('api/{model}', [ApiResurceController::class, 'index']);
     Route::get('trips', [ApiResurceController::class, 'trips']);

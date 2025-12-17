@@ -439,6 +439,36 @@ class PayoutAccountController extends Controller
     }
 
     /**
+     * Payout onboarding completion callback
+     * Called when user completes Stripe onboarding
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function payoutComplete()
+    {
+        return response()->view('payout-complete', [
+            'title' => 'Payout Account Setup Complete',
+            'message' => 'Your payout account has been set up successfully! You can now close this window and return to the app.',
+            'status' => 'success'
+        ]);
+    }
+
+    /**
+     * Payout onboarding refresh callback
+     * Called when user needs to refresh/retry onboarding
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function payoutRefresh()
+    {
+        return response()->view('payout-refresh', [
+            'title' => 'Continue Account Setup',
+            'message' => 'Please continue setting up your payout account. Close this window and try again from the app.',
+            'status' => 'info'
+        ]);
+    }
+
+    /**
      * Helper: Sync Stripe account details
      */
     private function syncStripeAccount($account)
