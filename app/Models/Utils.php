@@ -56,9 +56,8 @@ class Utils extends Model
         $date = null
     ) {
 
-        $pending_trips = Trip::where([
-            'status' => 'Pending',
-        ])->orderBy('id', 'desc')
+        $pending_trips = Trip::whereRaw('LOWER(status) = ?', ['pending'])
+            ->orderBy('id', 'desc')
             ->limit(1000)
             ->get();
         return $pending_trips;

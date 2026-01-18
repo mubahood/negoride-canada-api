@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Negotiation;
-use App\Models\RouteStage;
 use App\Models\Trip;
 use App\Models\TripBooking;
 use App\Models\User;
@@ -21,6 +20,31 @@ class ApiAuthController extends Controller
 {
 
     use ApiResponser;
+
+    /**
+     * Get the authenticated user from JWT
+     * Tries multiple methods to ensure compatibility
+     */
+    protected function getAuthUser()
+    {
+        // Try request user resolver first (set by middleware)
+        $user = request()->user();
+        if ($user) return $user;
+        
+        // Try auth_user from request merge (backup method)
+        $user = request()->get('auth_user');
+        if ($user) return $user;
+        
+        // Try JWTAuth directly
+        try {
+            $user = JWTAuth::parseToken()->authenticate();
+            if ($user) return $user;
+        } catch (\Exception $e) {
+            // Ignore and try next method
+        }
+        
+        return null;
+    }
 
     /**
      * Create a new AuthController instance.
@@ -40,12 +64,11 @@ class ApiAuthController extends Controller
     }
     public function me()
     {
-        $query = auth('api')->user();
-        if ($query == null) {
+        $admin = $this->getAuthUser();
+        if ($admin == null) {
             return $this->error('User not found.');
         }
         $data = [];
-        $admin = Administrator::find($query->id);
         if ($admin != null) {
             $admin->updated_at = Carbon::now()->format('Y-m-d H:i:s');
             $admin->save();
@@ -57,8 +80,7 @@ class ApiAuthController extends Controller
 
     public function trips_bookings_create(Request $r)
     {
-        $query = auth('api')->user();
-        $u = Administrator::find($query->id);
+        $u = $this->getAuthUser();
         if ($u == null) {
             return $this->error('User not found.');
         }
@@ -81,9 +103,9 @@ class ApiAuthController extends Controller
         if ($trip == null) {
             return $this->error('Trip not found.');
         }
-        if ($trip->status != 'Pending') {
+       /*  if ($trip->status != 'Pending') {
             return $this->error('Trip is not in pending status.');
-        }
+        } */
 
         // Check if user already has a booking for this trip
         $existingBooking = TripBooking::where('trip_id', $trip->id)
@@ -104,18 +126,8 @@ class ApiAuthController extends Controller
             return $this->error("Only {$availableSlots} slots are available for this trip.");
         }
 
-        // Validate route stages exist before creating booking
-        $start_stage = RouteStage::find($trip->start_stage_id);
-        $end_stage = RouteStage::find($trip->end_stage_id);
-        if ($start_stage == null) {
-            return $this->error("Start stage not found.");
-        }
-        if ($end_stage == null) {
-            return $this->error("End stage not found.");
-        }
-
         // Get driver information
-        $driver = Administrator::find($trip->driver_id);
+        $driver = User::find($trip->driver_id);
         if ($driver == null) {
             return $this->error("Driver not found.");
         }
@@ -168,8 +180,7 @@ class ApiAuthController extends Controller
 
     public function trips_bookings_update(Request $r)
     {
-        $query = auth('api')->user();
-        $u = Administrator::find($query->id);
+        $u = $this->getAuthUser();
         if ($u == null) {
             return $this->error('User not found.');
         }
@@ -228,8 +239,7 @@ class ApiAuthController extends Controller
 
     public function go_on_off(Request $r)
     {
-        $query = auth('api')->user();
-        $u = Administrator::find($query->id);
+        $u = $this->getAuthUser();
         if ($u == null) {
             return $this->error('User not found.');
         }
@@ -284,8 +294,7 @@ class ApiAuthController extends Controller
 
     public function refresh_status(Request $r)
     {
-        $query = auth('api')->user();
-        $u = Administrator::find($query->id);
+        $u = $this->getAuthUser();
         if ($u == null) {
             return $this->error('User not found.');
         }
@@ -327,8 +336,7 @@ class ApiAuthController extends Controller
 
     public function trips_drivers(Request $r)
     {
-        $query = auth('api')->user();
-        $u = Administrator::find($query->id);
+        $u = $this->getAuthUser();
         if ($u == null) {
             return $this->error('User not found.');
         }
@@ -524,8 +532,7 @@ class ApiAuthController extends Controller
     }
     public function trips_update(Request $r)
     {
-        $query = auth('api')->user();
-        $u = Administrator::find($query->id);
+        $u = $this->getAuthUser();
         if ($u == null) {
             return $this->error('User not found.');
         }
@@ -658,8 +665,7 @@ class ApiAuthController extends Controller
     }
     public function become_driver(Request $r)
     {
-        $u = auth('api')->user();
-        $admin = Administrator::find($u->id);
+        $admin = $this->getAuthUser();
         if ($admin == null) {
             return $this->error('User not found.');
         }
@@ -951,11 +957,15 @@ class ApiAuthController extends Controller
      */
     public function trips_driver_bookings(Request $r)
     {
-        $query = auth('api')->user();
-        $u = Administrator::find($query->id);
+        Log::info('trips_driver_bookings: Starting');
+        // Try multiple ways to get the authenticated user
+        $u = $this->getAuthUser();
+        Log::info('trips_driver_bookings: Auth user', ['user' => $u]);
         if ($u == null) {
+            Log::error('trips_driver_bookings: User is null');
             return $this->error('User not found.');
         }
+        Log::info('trips_driver_bookings: User found', ['id' => $u->id]);
 
         // Get trip ID filter if provided
         $tripId = $r->trip_id;
@@ -1000,8 +1010,7 @@ class ApiAuthController extends Controller
      */
     public function trips_update_detailed(Request $r)
     {
-        $query = auth('api')->user();
-        $u = Administrator::find($query->id);
+        $u = $this->getAuthUser();
         if ($u == null) {
             return $this->error('User not found.');
         }
@@ -1111,8 +1120,7 @@ class ApiAuthController extends Controller
      */
     public function trips_booking_status_update(Request $r)
     {
-        $query = auth('api')->user();
-        $u = Administrator::find($query->id);
+        $u = $this->getAuthUser();
         if ($u == null) {
             return $this->error('User not found.');
         }
@@ -1204,8 +1212,7 @@ class ApiAuthController extends Controller
      */
     public function trips_my_driver_trips(Request $r)
     {
-        $query = auth('api')->user();
-        $u = Administrator::find($query->id);
+        $u = $this->getAuthUser();
         if ($u == null) {
             return $this->error('User not found.');
         }
@@ -1242,5 +1249,134 @@ class ApiAuthController extends Controller
                 'total_revenue' => $trips->sum('total_revenue')
             ]
         ], 'Success');
+    }
+
+    /**
+     * Get trip notes for a specific trip
+     * 
+     * @param Request $r
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function trip_notes_get(Request $r)
+    {
+        Log::info('trip_notes_get: Starting');
+        $u = $this->getAuthUser();
+        Log::info('trip_notes_get: Auth user', ['user' => $u]);
+        if ($u == null) {
+            Log::error('trip_notes_get: User is null');
+            return $this->error('User not found.');
+        }
+        Log::info('trip_notes_get: User found', ['id' => $u->id]);
+
+        if (empty($r->trip_id)) {
+            return $this->error('Trip ID is required.');
+        }
+
+        $trip = Trip::find($r->trip_id);
+        if ($trip == null) {
+            return $this->error('Trip not found.');
+        }
+
+        // Verify user has access to this trip (driver or passenger)
+        $hasAccess = ($trip->driver_id == $u->id) || 
+                     TripBooking::where('trip_id', $trip->id)
+                                ->where('customer_id', $u->id)
+                                ->exists();
+
+        if (!$hasAccess) {
+            return $this->error('You do not have access to this trip.');
+        }
+
+        // Get all notes for this trip
+        $notes = \App\Models\TripNote::where('trip_id', $trip->id)
+            ->with('user')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Format notes with author information
+        $formattedNotes = $notes->map(function ($note) {
+            return [
+                'id' => $note->id,
+                'note' => $note->note,
+                'note_type' => $note->note_type,
+                'created_at' => $note->created_at->toDateTimeString(),
+                'author_name' => $note->user ? $note->user->name : 'Unknown',
+                'author_id' => $note->user_id,
+            ];
+        });
+
+        return $this->success([
+            'notes' => $formattedNotes,
+            'total' => $notes->count()
+        ], 'Success');
+    }
+
+    /**
+     * Add a new trip note
+     * 
+     * @param Request $r
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function trip_notes_add(Request $r)
+    {
+        $u = $this->getAuthUser();
+        if ($u == null) {
+            return $this->error('User not found.');
+        }
+
+        if (empty($r->trip_id)) {
+            return $this->error('Trip ID is required.');
+        }
+
+        if (empty($r->note)) {
+            return $this->error('Note content is required.');
+        }
+
+        if (strlen(trim($r->note)) < 3) {
+            return $this->error('Note must be at least 3 characters long.');
+        }
+
+        $trip = Trip::find($r->trip_id);
+        if ($trip == null) {
+            return $this->error('Trip not found.');
+        }
+
+        // Verify user has access to this trip (driver or passenger)
+        $isDriver = ($trip->driver_id == $u->id);
+        $isPassenger = TripBooking::where('trip_id', $trip->id)
+                                  ->where('customer_id', $u->id)
+                                  ->exists();
+
+        if (!$isDriver && !$isPassenger) {
+            return $this->error('You do not have access to this trip.');
+        }
+
+        // Determine note type
+        $noteType = $isDriver ? 'driver' : 'passenger';
+
+        // Create the note
+        $note = new \App\Models\TripNote();
+        $note->trip_id = $trip->id;
+        $note->user_id = $u->id;
+        $note->note = trim($r->note);
+        $note->note_type = $noteType;
+
+        try {
+            $note->save();
+        } catch (\Throwable $th) {
+            return $this->error('Failed to add note: ' . $th->getMessage());
+        }
+
+        // Return the created note with author information
+        $formattedNote = [
+            'id' => $note->id,
+            'note' => $note->note,
+            'note_type' => $note->note_type,
+            'created_at' => $note->created_at->toDateTimeString(),
+            'author_name' => $u->name,
+            'author_id' => $u->id,
+        ];
+
+        return $this->success($formattedNote, 'Note added successfully.');
     }
 }

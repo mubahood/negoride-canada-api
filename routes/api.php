@@ -117,6 +117,11 @@ Route::middleware([JwtMiddleware::class])->group(function () {
     Route::get("trips-driver-bookings", [ApiAuthController::class, "trips_driver_bookings"]);
     Route::POST("trips-booking-status-update", [ApiAuthController::class, "trips_booking_status_update"]);
     Route::get("trips-my-driver-trips", [ApiAuthController::class, "trips_my_driver_trips"]);
+    
+    // Trip notes endpoints
+    Route::get("trip-notes", [ApiAuthController::class, "trip_notes_get"]);
+    Route::POST("trip-notes-add", [ApiAuthController::class, "trip_notes_add"]);
+    
     Route::POST("trips-initiate", [ApiAuthController::class, "trips_initiate"]);
     Route::POST("go-on-off", [ApiAuthController::class, "go_on_off"]);
     Route::POST("negotiation-updates", [ApiAuthController::class, "negotiation_updates"]);
