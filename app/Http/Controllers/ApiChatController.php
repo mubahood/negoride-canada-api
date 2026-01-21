@@ -7,6 +7,7 @@ use App\Models\Chat\ChatMessage;
 use App\Models\Negotiation;
 use App\Models\NegotiationRecord;
 use App\Models\Trip;
+use App\Models\TripBooking;
 use App\Models\User;
 use App\Models\Utils;
 use App\Traits\ApiResponser;
@@ -722,18 +723,29 @@ class ApiChatController extends Controller
     /**
      * Handle checkout session completion
      * Enhanced with better logging and state management
+     * Supports both Negotiation (car hire) and TripBooking (rideshare)
      */
     private function handleCheckoutSessionCompleted($session, $event_id = null)
     {
         try {
-            // Extract negotiation ID from metadata
-            $negotiation_id = $session['metadata']['negotiation_id'] ?? null;
             $session_id = $session['id'] ?? null;
+            $metadata = $session['metadata'] ?? [];
+
+            // Check if this is a rideshare booking payment
+            $booking_id = $metadata['booking_id'] ?? null;
+            if ($booking_id) {
+                $this->handleRideshareBookingPayment($booking_id, $session_id, $event_id);
+                return;
+            }
+
+            // Otherwise, treat as negotiation (car hire) payment
+            $negotiation_id = $metadata['negotiation_id'] ?? null;
 
             if (!$negotiation_id) {
-                Log::warning('⚠️ No negotiation_id in session metadata', [
+                Log::warning('⚠️ No negotiation_id or booking_id in session metadata', [
                     'session_id' => $session_id,
                     'event_id' => $event_id,
+                    'metadata' => $metadata,
                 ]);
                 return;
             }
@@ -778,6 +790,64 @@ class ApiChatController extends Controller
             Log::error('❌ Error handling checkout session completion', [
                 'error' => $e->getMessage(),
                 'negotiation_id' => $session['metadata']['negotiation_id'] ?? 'unknown',
+                'event_id' => $event_id,
+            ]);
+        }
+    }
+
+    /**
+     * Handle rideshare booking payment completion
+     */
+    private function handleRideshareBookingPayment($booking_id, $session_id, $event_id = null)
+    {
+        try {
+            Log::info('🚗 Processing rideshare booking payment', [
+                'booking_id' => $booking_id,
+                'session_id' => $session_id,
+                'event_id' => $event_id,
+            ]);
+
+            $booking = TripBooking::find($booking_id);
+
+            if (!$booking) {
+                Log::warning('⚠️ Booking not found for payment', [
+                    'booking_id' => $booking_id,
+                    'session_id' => $session_id,
+                ]);
+                return;
+            }
+
+            // Check if already marked as paid (idempotency)
+            if ($booking->isPaid()) {
+                Log::info('ℹ️ Booking already marked as paid', [
+                    'booking_id' => $booking->id,
+                    'session_id' => $session_id,
+                ]);
+                return;
+            }
+
+            // Mark as paid and auto-reserve the seat
+            $success = $booking->markAsPaid($session_id);
+
+            if ($success) {
+                Log::info('✅ Rideshare booking payment processed successfully', [
+                    'booking_id' => $booking->id,
+                    'trip_id' => $booking->trip_id,
+                    'customer_id' => $booking->customer_id,
+                    'amount_cents' => $booking->price,
+                    'status' => $booking->status,
+                    'event_id' => $event_id,
+                ]);
+            } else {
+                Log::error('❌ Failed to mark rideshare booking as paid', [
+                    'booking_id' => $booking->id,
+                    'session_id' => $session_id,
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('❌ Error handling rideshare booking payment', [
+                'error' => $e->getMessage(),
+                'booking_id' => $booking_id,
                 'event_id' => $event_id,
             ]);
         }

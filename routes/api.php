@@ -94,6 +94,15 @@ Route::middleware([JwtMiddleware::class])->group(function () {
     Route::post('payout-account/deactivate', [PayoutAccountController::class, 'deactivate']);
     Route::post('payout-account/reactivate', [PayoutAccountController::class, 'reactivate']);
     
+    // Profile & Account Management API endpoints
+    Route::get('profile', [App\Http\Controllers\Api\ProfileController::class, 'getProfile']);
+    Route::post('profile/update', [App\Http\Controllers\Api\ProfileController::class, 'updateProfile']);
+    Route::post('profile/avatar', [App\Http\Controllers\Api\ProfileController::class, 'updateAvatar']);
+    Route::post('profile/change-password', [App\Http\Controllers\Api\ProfileController::class, 'changePassword']);
+    Route::post('profile/update-email', [App\Http\Controllers\Api\ProfileController::class, 'updateEmail']);
+    Route::post('profile/update-phone', [App\Http\Controllers\Api\ProfileController::class, 'updatePhone']);
+    Route::post('profile/delete-account', [App\Http\Controllers\Api\ProfileController::class, 'deleteAccount']);
+    
     // Payout Request API endpoints
     Route::get('payout-requests', [PayoutRequestController::class, 'index']);
     Route::get('payout-requests/statistics', [PayoutRequestController::class, 'statistics']);
@@ -121,6 +130,10 @@ Route::middleware([JwtMiddleware::class])->group(function () {
     // Trip notes endpoints
     Route::get("trip-notes", [ApiAuthController::class, "trip_notes_get"]);
     Route::POST("trip-notes-add", [ApiAuthController::class, "trip_notes_add"]);
+    
+    // Rideshare payment endpoints
+    Route::POST("rideshare-refresh-payment", [ApiAuthController::class, "rideshare_refresh_payment"]);
+    Route::POST("rideshare-check-payment", [ApiAuthController::class, "rideshare_check_payment"]);
     
     Route::POST("trips-initiate", [ApiAuthController::class, "trips_initiate"]);
     Route::POST("go-on-off", [ApiAuthController::class, "go_on_off"]);

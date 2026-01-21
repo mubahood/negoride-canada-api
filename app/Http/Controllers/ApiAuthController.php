@@ -132,18 +132,28 @@ class ApiAuthController extends Controller
             return $this->error("Driver not found.");
         }
 
+        // Calculate total price in cents (for Stripe)
+        // Trip price is stored in dollars, convert to cents
+        $pricePerSeatCents = intval(floatval($trip->price) * 100);
+        $totalPriceCents = $pricePerSeatCents * $slotCount;
+
+        // Ensure minimum payment (Stripe minimum is 50 cents)
+        if ($totalPriceCents < 50) {
+            return $this->error('Total booking amount must be at least $0.50 CAD.');
+        }
+
         $booking = new TripBooking();
         $booking->trip_id = $trip->id;
         $booking->customer_id = $u->id;
         $booking->driver_id = $trip->driver_id;
-        $booking->start_stage_id = $trip->start_stage_id;
-        $booking->end_stage_id = $trip->end_stage_id;
+        $booking->start_stage_id = $trip->start_stage_id ?? 1;
+        $booking->end_stage_id = $trip->end_stage_id ?? 1;
         $booking->status = 'Pending';
         $booking->payment_status = 'Pending';
         $booking->start_time = null;
         $booking->end_time = null;
         $booking->slot_count = $slotCount;
-        $booking->price = $trip->price * $slotCount;
+        $booking->price = $totalPriceCents; // Store in cents for Stripe
         $booking->customer_note = $r->customer_note ?? '';
 
         // Populate text fields
@@ -152,28 +162,35 @@ class ApiAuthController extends Controller
         $booking->customer_text = $u->name;
         $booking->driver_text = $driver->name;
         $booking->trip_text = $trip->details ?? $trip->name ?? 'Trip';
-        // Note: customer_contact and driver_contact are computed attributes, not database columns
 
         try {
             $booking->save();
 
-            // Send notification to driver (if SMS functionality is available)
-            if (method_exists('App\Models\Utils', 'send_message') && !empty($driver->phone_number)) {
-                try {
-                    Utils::send_message(
-                        $driver->phone_number,
-                        "RIDESHARE! New booking received for your trip. {$slotCount} seat(s) booked by {$u->name}. Open the app to view details."
-                    );
-                } catch (\Throwable $smsError) {
-                    // Log SMS error but don't fail the booking
-                    Log::warning('Failed to send SMS notification: ' . $smsError->getMessage());
-                }
+            // Generate Stripe payment link
+            try {
+                $booking->create_payment_link();
+                Log::info('✅ Payment link created for booking', [
+                    'booking_id' => $booking->id,
+                    'stripe_url' => $booking->stripe_url,
+                ]);
+            } catch (\Exception $paymentError) {
+                Log::error('❌ Failed to create payment link for booking', [
+                    'booking_id' => $booking->id,
+                    'error' => $paymentError->getMessage(),
+                ]);
+                // Don't fail the booking creation, but note the payment issue
+                $booking->payment_failure_reason = 'Failed to create payment link: ' . $paymentError->getMessage();
+                $booking->save();
             }
+
+            // Refresh booking to get all attributes including stripe_url
+            $booking = TripBooking::find($booking->id);
+
         } catch (\Throwable $th) {
             return $this->error('Failed to create booking: ' . $th->getMessage());
         }
 
-        return $this->success($booking, "Trip booking created successfully.", 1);
+        return $this->success($booking, "Trip booking created successfully. Please complete payment to confirm your seat.", 1);
     }
 
 
@@ -1378,5 +1395,195 @@ class ApiAuthController extends Controller
         ];
 
         return $this->success($formattedNote, 'Note added successfully.');
+    }
+
+    /**
+     * ========================================
+     * RIDESHARE PAYMENT ENDPOINTS
+     * ========================================
+     */
+
+    /**
+     * Refresh/regenerate payment link for a booking
+     * POST /api/rideshare-refresh-payment
+     */
+    public function rideshare_refresh_payment(Request $r)
+    {
+        $u = $this->getAuthUser();
+        if ($u == null) {
+            return $this->error('User not found.');
+        }
+
+        $booking_id = $r->booking_id;
+        if (!$booking_id) {
+            return $this->error('Booking ID is required.');
+        }
+
+        $booking = TripBooking::find($booking_id);
+        if (!$booking) {
+            return $this->error('Booking not found.');
+        }
+
+        // Verify user is the customer
+        if ($booking->customer_id != $u->id) {
+            return $this->error('You are not authorized to access this booking.');
+        }
+
+        // Check if already paid
+        if ($booking->isPaid()) {
+            return $this->success([
+                'booking_id' => $booking->id,
+                'payment_status' => $booking->payment_status,
+                'stripe_paid' => $booking->stripe_paid,
+                'status' => $booking->status,
+                'message' => 'Payment already completed.',
+            ], 'Payment is already completed.');
+        }
+
+        try {
+            // Force regenerate if requested
+            if ($r->force_regenerate) {
+                $booking->stripe_id = null;
+                $booking->stripe_url = null;
+                $booking->stripe_product_id = null;
+                $booking->stripe_price_id = null;
+                $booking->payment_failure_reason = null;
+                $booking->save();
+            }
+
+            // Create/get payment link
+            $booking->create_payment_link();
+
+            return $this->success([
+                'booking_id' => $booking->id,
+                'stripe_url' => $booking->stripe_url,
+                'stripe_id' => $booking->stripe_id,
+                'price' => $booking->price,
+                'payment_status' => $booking->payment_status,
+                'stripe_paid' => $booking->stripe_paid,
+            ], 'Payment link generated successfully.');
+        } catch (\Exception $e) {
+            Log::error('Rideshare payment link generation failed: ' . $e->getMessage(), [
+                'booking_id' => $booking_id,
+                'user_id' => $u->id
+            ]);
+            return $this->error('Failed to generate payment link: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Check payment status for a booking
+     * POST /api/rideshare-check-payment
+     */
+    public function rideshare_check_payment(Request $r)
+    {
+        $u = $this->getAuthUser();
+        if ($u == null) {
+            return $this->error('User not found.');
+        }
+
+        $booking_id = $r->booking_id;
+        if (!$booking_id) {
+            return $this->error('Booking ID is required.');
+        }
+
+        $booking = TripBooking::find($booking_id);
+        if (!$booking) {
+            return $this->error('Booking not found.');
+        }
+
+        // Verify user is the customer or driver
+        $trip = $booking->trip;
+        if ($booking->customer_id != $u->id && ($trip && $trip->driver_id != $u->id)) {
+            return $this->error('You are not authorized to access this booking.');
+        }
+
+        try {
+            // If has payment link but not paid, sync from Stripe
+            if ($booking->stripe_id && !$booking->isPaid()) {
+                $this->syncBookingPaymentFromStripe($booking);
+                $booking->refresh();
+            }
+
+            $isPaid = $booking->isPaid();
+
+            if ($isPaid) {
+                return $this->success([
+                    'booking_id' => $booking->id,
+                    'payment_status' => $booking->payment_status,
+                    'stripe_paid' => $booking->stripe_paid,
+                    'is_paid' => true,
+                    'status' => $booking->status,
+                    'payment_completed_at' => $booking->payment_completed_at,
+                    'price' => $booking->price,
+                    'message' => 'Payment completed! Your seat is reserved.',
+                ], 'Payment is completed.');
+            } else {
+                // Create payment link if doesn't exist
+                if (empty($booking->stripe_url) && $booking->price > 0) {
+                    try {
+                        $booking->create_payment_link();
+                        $booking->refresh();
+                    } catch (\Exception $e) {
+                        Log::warning('Could not create payment link during check: ' . $e->getMessage());
+                    }
+                }
+
+                return $this->success([
+                    'booking_id' => $booking->id,
+                    'payment_status' => $booking->payment_status,
+                    'stripe_paid' => $booking->stripe_paid ?? 'No',
+                    'is_paid' => false,
+                    'status' => $booking->status,
+                    'stripe_url' => $booking->stripe_url,
+                    'price' => $booking->price,
+                    'message' => 'Payment is pending. Please complete payment to confirm your seat.',
+                ], 'Payment is pending.');
+            }
+        } catch (\Exception $e) {
+            Log::error('Rideshare payment check failed: ' . $e->getMessage(), [
+                'booking_id' => $booking_id,
+                'user_id' => $u->id
+            ]);
+            return $this->error('Failed to check payment status: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Sync booking payment status from Stripe
+     */
+    private function syncBookingPaymentFromStripe(TripBooking $booking)
+    {
+        if (!$booking->stripe_id) {
+            return;
+        }
+
+        try {
+            $stripe = new \Stripe\StripeClient(env('STRIPE_KEY'));
+            
+            // Get checkout sessions for this payment link
+            $sessions = $stripe->checkout->sessions->all([
+                'payment_link' => $booking->stripe_id,
+                'limit' => 10
+            ]);
+
+            foreach ($sessions->data as $session) {
+                if ($session->payment_status === 'paid' && $session->status === 'complete') {
+                    // Mark as paid
+                    $booking->markAsPaid($session->id);
+                    
+                    Log::info('✅ Booking payment synced from Stripe', [
+                        'booking_id' => $booking->id,
+                        'session_id' => $session->id,
+                    ]);
+                    
+                    return;
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to sync booking payment from Stripe: ' . $e->getMessage(), [
+                'booking_id' => $booking->id,
+            ]);
+        }
     }
 }
