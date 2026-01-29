@@ -358,18 +358,73 @@ class ApiChatController extends Controller
     }
 
 
-    public function negotiations()
+    public function negotiations(Request $r)
     {
         $user = auth('api')->user();
         if ($user == null) {
             return $this->error('User not found.');
         }
-        $negotiations = Negotiation::where([
-            'customer_id' => $user->id,
-        ])->orWhere([
-            'driver_id' => $user->id
-        ])->get();
-        return $this->success($negotiations, 'Success');
+
+        // Build query for user's negotiations (as driver or customer)
+        $query = Negotiation::where(function ($q) use ($user) {
+            $q->where('customer_id', $user->id)
+              ->orWhere('driver_id', $user->id);
+        });
+
+        // Optional status filter
+        if ($r->has('status') && $r->status) {
+            $status = $r->status;
+            if ($status === 'active') {
+                $query->where('is_active', 'Yes')
+                      ->whereIn('status', ['Active', 'Accepted', 'Pending', 'Started', 'Ongoing']);
+            } elseif ($status === 'completed') {
+                $query->where('status', 'Completed');
+            } elseif ($status === 'canceled') {
+                $query->whereIn('status', ['Canceled', 'Cancelled']);
+            }
+        }
+
+        // Default sort by newest first
+        $sortBy = $r->input('sort_by', 'created_at');
+        $sortOrder = $r->input('sort_order', 'desc');
+        $query->orderBy($sortBy, $sortOrder);
+
+        // Optional pagination
+        $perPage = $r->input('per_page', 0);
+        if ($perPage > 0) {
+            $negotiations = $query->paginate($perPage);
+            return $this->success([
+                'data' => $negotiations->items(),
+                'pagination' => [
+                    'current_page' => $negotiations->currentPage(),
+                    'per_page' => $negotiations->perPage(),
+                    'total' => $negotiations->total(),
+                    'last_page' => $negotiations->lastPage(),
+                ],
+            ], 'Success');
+        }
+
+        $negotiations = $query->get();
+
+        // Add summary stats
+        $allNegotiations = Negotiation::where(function ($q) use ($user) {
+            $q->where('customer_id', $user->id)
+              ->orWhere('driver_id', $user->id);
+        })->get();
+
+        $stats = [
+            'total' => $allNegotiations->count(),
+            'active' => $allNegotiations->where('is_active', 'Yes')
+                ->whereIn('status', ['Active', 'Accepted', 'Pending', 'Started', 'Ongoing'])
+                ->count(),
+            'completed' => $allNegotiations->where('status', 'Completed')->count(),
+            'canceled' => $allNegotiations->whereIn('status', ['Canceled', 'Cancelled'])->count(),
+        ];
+
+        return $this->success([
+            'negotiations' => $negotiations,
+            'stats' => $stats,
+        ], 'Success');
     }
 
     public function negotiations_records(Request $r)
