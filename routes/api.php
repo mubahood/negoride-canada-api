@@ -137,6 +137,7 @@ Route::middleware([JwtMiddleware::class])->group(function () {
     
     Route::POST("trips-initiate", [ApiAuthController::class, "trips_initiate"]);
     Route::POST("go-on-off", [ApiAuthController::class, "go_on_off"]);
+    Route::POST("update-online-status", [ApiAuthController::class, "update_online_status"]); // Flexible online/offline status update
     Route::POST("negotiation-updates", [ApiAuthController::class, "negotiation_updates"]);
 
     Route::POST("refresh-status", [ApiAuthController::class, "refresh_status"]);

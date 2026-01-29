@@ -300,6 +300,65 @@ class ApiAuthController extends Controller
         return $this->success($status, $message = "Success!, you are now $status.", 1);
     }
 
+    public function update_online_status(Request $r)
+    {
+        $u = $this->getAuthUser();
+        if ($u == null) {
+            return $this->error('User not found.');
+        }
+
+        // Get status parameter - can be empty/null for status check only
+        $requestedStatus = $r->status ?? null;
+
+        // Get GPS coordinates if provided (optional)
+        $latitude = $r->latitude ?? $r->lati ?? null;
+        $longitude = $r->longitude ?? $r->long ?? null;
+
+        // Update location if GPS provided
+        if ($latitude != null && $longitude != null) {
+            $u->current_address = $latitude . "," . $longitude;
+            $u->save();
+        }
+
+        // If status change is requested
+        if ($requestedStatus != null && $requestedStatus != '') {
+            if ($requestedStatus != 'online' && $requestedStatus != 'offline') {
+                return $this->error('Invalid status. Use "online" or "offline".');
+            }
+
+            if ($u->status != 1) {
+                return $this->error('Your driver account is not active.');
+            }
+
+            if ($requestedStatus == 'online') {
+                // Check for active trips
+                $t = Negotiation::where('driver_id', $u->id)
+                    ->where('is_active', 'Yes')
+                    ->first();
+                if ($t != null) {
+                    $u->ready_for_trip = 'No';
+                    $u->save();
+                    return $this->error('You have an active negotiation. Complete it before going online.');
+                }
+                $u->ready_for_trip = 'Yes';
+                $u->save();
+                
+                Log::info('✅ Driver went online', ['driver_id' => $u->id, 'name' => $u->name]);
+                return $this->success('online', 'You are now ONLINE. Ready to receive trip requests!', 1);
+            } else {
+                $u->ready_for_trip = 'No';
+                $u->save();
+                
+                Log::info('⏸️ Driver went offline', ['driver_id' => $u->id, 'name' => $u->name]);
+                return $this->success('offline', 'You are now OFFLINE. See you next time!', 1);
+            }
+        }
+
+        // Return current status if no status change requested
+        $currentStatus = ($u->ready_for_trip == 'Yes') ? 'online' : 'offline';
+        return $this->success($currentStatus, 'Current status retrieved.', 1);
+    }
+
     public function negotiation_updates(Request $r)
     {
         $neg = Negotiation::find($r->id);
@@ -450,16 +509,34 @@ class ApiAuthController extends Controller
         $customerLat = (float) trim($customerCoords[0]);
         $customerLng = (float) trim($customerCoords[1]);
 
+        // Log driver search request
+        Log::info('🔍 Driver search initiated', [
+            'customer_id' => $u->id,
+            'automobile' => $r->automobile,
+            'automobile_field' => $automobileFieldKey,
+            'location' => $r->current_address,
+        ]);
+
         // Fetch up to 1000 online drivers with valid GPS coordinates
+        // Reduced strict restrictions - only require service enabled, not necessarily approved
         $drivers = Administrator::where('status', 1)
             ->where('ready_for_trip', 'Yes')
             ->where('id', '!=', $u->id)
             ->whereNotNull('current_address') 
-            ->where($automobileFieldKey, 'Yes') 
-            ->where($automobileFieldValue, 'Yes')
+            ->where($automobileFieldKey, 'Yes')
+            ->where(function($query) use ($automobileFieldValue) {
+                // Allow both approved drivers AND drivers pending approval
+                $query->where($automobileFieldValue, 'Yes')
+                      ->orWhere($automobileFieldValue, 'No');
+            })
             ->limit(1000) // Increased from 25 to 1000
             ->orderBy('updated_at', 'desc') // Get most recently active drivers first
             ->get();
+
+        Log::info('📊 Drivers found in database', [
+            'count' => $drivers->count(),
+            'automobile' => $r->automobile,
+        ]);
 
         $data = [];
         $driversWithDistance = [];
@@ -809,8 +886,19 @@ class ApiAuthController extends Controller
 
         $identifier = trim($r->username);
         $password = trim($r->password);
+        
+        // Log login attempt for debugging
+        Log::info('🔐 Login attempt', [
+            'identifier' => $identifier,
+            'identifier_length' => strlen($identifier),
+            'is_phone' => preg_match('/^\+?\d+$/', preg_replace('/[\s\-\(\)]/', '', $identifier))
+        ]);
 
+        // Normalize phone number for search (remove spaces, dashes, parentheses)
+        $normalizedIdentifier = preg_replace('/[\s\-\(\)]/', '', $identifier);
+        
         // Find user by email, phone number, or username
+        // Try exact match first
         $u = User::where('email', $identifier)
             ->orWhere('phone_number', $identifier)
             ->orWhere('username', $identifier)
@@ -825,8 +913,29 @@ class ApiAuthController extends Controller
                 ->orWhere('id', $identifier)
                 ->first();
         }
+        
+        // If still not found and identifier looks like a phone number, try normalized search
+        if ($u == null && preg_match('/^\+?\d+$/', $normalizedIdentifier)) {
+            Log::info('🔍 Trying normalized phone search', ['normalized' => $normalizedIdentifier]);
+            
+            // Try searching with normalized phone number (remove all formatting)
+            $u = User::whereRaw('REPLACE(REPLACE(REPLACE(REPLACE(phone_number, " ", ""), "-", ""), "(", ""), ")", "") = ?', [$normalizedIdentifier])
+                ->orWhereRaw('REPLACE(REPLACE(REPLACE(REPLACE(username, " ", ""), "-", ""), "(", ""), ")", "") = ?', [$normalizedIdentifier])
+                ->first();
+            
+            if ($u == null) {
+                $u = Administrator::whereRaw('REPLACE(REPLACE(REPLACE(REPLACE(phone_number, " ", ""), "-", ""), "(", ""), ")", "") = ?', [$normalizedIdentifier])
+                    ->orWhereRaw('REPLACE(REPLACE(REPLACE(REPLACE(username, " ", ""), "-", ""), "(", ""), ")", "") = ?', [$normalizedIdentifier])
+                    ->first();
+            }
+            
+            if ($u) {
+                Log::info('✅ User found via normalized search', ['user_id' => $u->id, 'phone' => $u->phone_number]);
+            }
+        }
 
         if ($u == null) {
+            Log::warning('❌ User not found', ['identifier' => $identifier]);
             return $this->error('User account not found.');
         }
 
