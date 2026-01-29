@@ -48,7 +48,6 @@ class ApiImportantContactsController extends ApiResurceController
                 'name',
                 'email', 
                 'phone_number',
-                'phone_number_2',
                 'current_address',
                 'home_address',
                 'is_ambulance',
@@ -94,8 +93,7 @@ class ApiImportantContactsController extends ApiResurceController
             if ($searchQuery) {
                 $query->where(function($q) use ($searchQuery) {
                     $q->where('name', 'like', '%' . $searchQuery . '%')
-                      ->orWhere('phone_number', 'like', '%' . $searchQuery . '%')
-                      ->orWhere('phone_number_2', 'like', '%' . $searchQuery . '%');
+                      ->orWhere('phone_number', 'like', '%' . $searchQuery . '%');
                 });
             }
 
@@ -118,7 +116,6 @@ class ApiImportantContactsController extends ApiResurceController
                         'name' => $contact->name,
                         'email' => $contact->email,
                         'phone_number' => $contact->phone_number,
-                        'phone_number_2' => $contact->phone_number_2,
                         'latitude' => $contactLat,
                         'longitude' => $contactLng,
                         'current_address' => $contact->current_address,
