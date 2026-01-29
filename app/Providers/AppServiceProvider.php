@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Observers\AdministratorObserver;
+use Encore\Admin\Auth\Database\Administrator;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -23,6 +25,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        //
+        // Register observer to auto-approve drivers when services are approved
+        Administrator::observe(AdministratorObserver::class);
     }
 }

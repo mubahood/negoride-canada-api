@@ -684,6 +684,7 @@ class ComposerStaticInitda89eef54c810448a827ed04bb3da82f
         'App\\Http\\Controllers\\Api\\ApiWebhookController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/ApiWebhookController.php',
         'App\\Http\\Controllers\\Api\\PayoutAccountController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/PayoutAccountController.php',
         'App\\Http\\Controllers\\Api\\PayoutRequestController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/PayoutRequestController.php',
+        'App\\Http\\Controllers\\Api\\ProfileController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/ProfileController.php',
         'App\\Http\\Controllers\\Api\\WalletController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/WalletController.php',
         'App\\Http\\Controllers\\Controller' => __DIR__ . '/../..' . '/app/Http/Controllers/Controller.php',
         'App\\Http\\Controllers\\MainController' => __DIR__ . '/../..' . '/app/Http/Controllers/MainController.php',

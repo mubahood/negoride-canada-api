@@ -723,10 +723,17 @@ class ApiAuthController extends Controller
 
         // Update basic driver information
         $admin->driving_license_number = $r->driving_license_number;
-        $admin->nin = $r->nin;
-        $admin->driving_license_issue_date = Carbon::parse($r->driving_license_issue_date);
-        $admin->driving_license_validity = Carbon::parse($r->driving_license_validity);
-        $admin->driving_license_issue_authority = $r->driving_license_issue_authority;
+        // Note: nin, driving_license_issue_date, driving_license_validity, driving_license_issue_authority
+        // are stored in driving_license_number field as a concatenated value for now due to DB row size limit
+        // Format: "license_number|issue_date|validity|authority|nin"
+        $licenseData = implode('|', [
+            $r->driving_license_number,
+            $r->driving_license_issue_date,
+            $r->driving_license_validity,
+            $r->driving_license_issue_authority,
+            $r->nin
+        ]);
+        $admin->driving_license_number = $licenseData;
         $admin->automobile = $r->automobile;
 
         // Update personal information if provided
@@ -871,9 +878,22 @@ class ApiAuthController extends Controller
         if ($r->phone_number == null) {
             return $this->error('Phone number is required.');
         }
+        
+        // Get country information (default to Canada)
+        $country_code = $r->country_code ?? '+1';
+        $country_name = $r->country_name ?? 'Canada';
+        $country_short_name = $r->country_short_name ?? 'CA';
+        
         $phone_number = trim($r->phone_number);
-        if (!Utils::phone_number_is_valid($phone_number)) {
-            return $this->error('Invalid phone number. ' . $phone_number);
+        
+        // Validate phone number format based on country
+        if (!$this->validatePhoneNumber($phone_number, $country_code)) {
+            return $this->error('Invalid phone number format for ' . $country_name . '.');
+        }
+        
+        // Format phone number with country code if not already present
+        if (!str_starts_with($phone_number, '+')) {
+            $phone_number = $country_code . ltrim($phone_number, '0');
         }
 
         if ($r->first_name == null || $r->last_name == null) {
@@ -888,8 +908,8 @@ class ApiAuthController extends Controller
             return $this->error('Password is required.');
         }
 
-        if (strlen(trim($r->password)) < 6) {
-            return $this->error('Password must be at least 6 characters long.');
+        if (strlen(trim($r->password)) < 4) {
+            return $this->error('Password must be at least 4 characters long.');
         }
 
         // Email validation (optional but if provided should be valid)
@@ -920,6 +940,9 @@ class ApiAuthController extends Controller
         $user->sex = trim($r->gender);
         $user->username = $phone_number;
         $user->phone_number = $phone_number;
+        $user->country_name = $country_name;
+        $user->country_code = $country_code;
+        $user->country_short_name = $country_short_name;
         $user->name = trim($r->first_name) . " " . trim($r->last_name);
         $user->password = password_hash(trim($r->password), PASSWORD_DEFAULT);
         $user->email = $r->email ? trim($r->email) : null;
@@ -966,6 +989,26 @@ class ApiAuthController extends Controller
             Log::error('JWT token generation exception for user ' . $user->id . ': ' . $e->getMessage());
             return $this->error('Account created successfully but automatic login failed: ' . $e->getMessage() . '. Please sign in manually.');
         }
+    }
+    
+    /**
+     * Validate phone number format for Canada/USA
+     */
+    private function validatePhoneNumber($phone, $country_code)
+    {
+        // Remove spaces, dashes, parentheses
+        $cleaned = preg_replace('/[\s\-\(\)]/', '', $phone);
+        
+        // For North America (+1), expect 10 digits
+        if ($country_code === '+1') {
+            // Remove country code if present
+            $cleaned = ltrim($cleaned, '+1');
+            // Should have exactly 10 digits
+            return preg_match('/^\d{10}$/', $cleaned);
+        }
+        
+        // Default: at least 10 digits
+        return preg_match('/^\d{10,15}$/', $cleaned);
     }
 
     /**

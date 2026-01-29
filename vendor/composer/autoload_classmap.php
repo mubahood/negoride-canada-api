@@ -65,6 +65,7 @@ return array(
     'App\\Http\\Controllers\\Api\\ApiWebhookController' => $baseDir . '/app/Http/Controllers/Api/ApiWebhookController.php',
     'App\\Http\\Controllers\\Api\\PayoutAccountController' => $baseDir . '/app/Http/Controllers/Api/PayoutAccountController.php',
     'App\\Http\\Controllers\\Api\\PayoutRequestController' => $baseDir . '/app/Http/Controllers/Api/PayoutRequestController.php',
+    'App\\Http\\Controllers\\Api\\ProfileController' => $baseDir . '/app/Http/Controllers/Api/ProfileController.php',
     'App\\Http\\Controllers\\Api\\WalletController' => $baseDir . '/app/Http/Controllers/Api/WalletController.php',
     'App\\Http\\Controllers\\Controller' => $baseDir . '/app/Http/Controllers/Controller.php',
     'App\\Http\\Controllers\\MainController' => $baseDir . '/app/Http/Controllers/MainController.php',

@@ -280,6 +280,9 @@ class ProfileController extends Controller
             $validator = Validator::make($request->all(), [
                 'phone_number' => 'required|string|min:10|max:20|unique:admin_users,phone_number,' . $user->id,
                 'password' => 'required|string', // Require password for security
+                'country_code' => 'sometimes|string|max:5',
+                'country_name' => 'sometimes|string|max:50',
+                'country_short_name' => 'sometimes|string|max:3',
             ]);
 
             if ($validator->fails()) {
@@ -293,12 +296,27 @@ class ProfileController extends Controller
 
             $oldPhone = $user->phone_number;
             $user->phone_number = $request->phone_number;
+            
+            // Update country fields if provided
+            if ($request->has('country_code')) {
+                $user->country_code = $request->country_code;
+            }
+            if ($request->has('country_name')) {
+                $user->country_name = $request->country_name;
+            }
+            if ($request->has('country_short_name')) {
+                $user->country_short_name = $request->country_short_name;
+            }
+            
             $user->save();
 
             Log::info("Phone updated for user {$user->id}: {$oldPhone} -> {$request->phone_number}");
 
             return $this->success([
-                'phone_number' => $user->phone_number
+                'phone_number' => $user->phone_number,
+                'country_code' => $user->country_code,
+                'country_name' => $user->country_name,
+                'country_short_name' => $user->country_short_name,
             ], 'Phone number updated successfully', 1);
         } catch (\Exception $e) {
             Log::error('Update phone error: ' . $e->getMessage());
