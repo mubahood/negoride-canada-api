@@ -1138,33 +1138,54 @@ class ApiAuthController extends Controller
 
         // Get trip ID filter if provided
         $tripId = $r->trip_id;
+        
+        Log::info('trips_driver_bookings: trip_id param', ['trip_id' => $tripId]);
 
-        // Base query: Get bookings for trips where user is the driver
-        $bookingsQuery = TripBooking::whereHas('trip', function ($query) use ($u) {
-            $query->where('driver_id', $u->id);
-        });
-
-        // Filter by specific trip if requested
+        // Build the query
+        $bookingsQuery = TripBooking::query();
+        
+        // If a specific trip_id is provided, filter by it AND verify the user is the driver
         if ($tripId) {
+            // First verify the user owns this trip
+            $trip = Trip::find($tripId);
+            if ($trip && $trip->driver_id != $u->id) {
+                Log::warning('trips_driver_bookings: User is not the driver of this trip', [
+                    'trip_id' => $tripId,
+                    'trip_driver_id' => $trip ? $trip->driver_id : null,
+                    'user_id' => $u->id
+                ]);
+                return $this->error('You are not the driver of this trip.');
+            }
+            
+            // Filter bookings by the specific trip
             $bookingsQuery->where('trip_id', $tripId);
+            Log::info('trips_driver_bookings: Filtering by trip_id', ['trip_id' => $tripId]);
+        } else {
+            // No trip_id provided - get all bookings for trips where user is driver
+            $bookingsQuery->whereHas('trip', function ($query) use ($u) {
+                $query->where('driver_id', $u->id);
+            });
+            Log::info('trips_driver_bookings: Getting all bookings for driver', ['driver_id' => $u->id]);
         }
 
         // Get bookings with related data
         $bookings = $bookingsQuery->with(['trip', 'customer'])
             ->orderBy('created_at', 'desc')
             ->get();
+            
+        Log::info('trips_driver_bookings: Found bookings', ['count' => $bookings->count()]);
 
         // Group bookings by trip for better organization
         $groupedBookings = [];
         foreach ($bookings as $booking) {
-            $tripId = $booking->trip_id;
-            if (!isset($groupedBookings[$tripId])) {
-                $groupedBookings[$tripId] = [
+            $bookingTripId = $booking->trip_id;
+            if (!isset($groupedBookings[$bookingTripId])) {
+                $groupedBookings[$bookingTripId] = [
                     'trip' => $booking->trip,
                     'bookings' => []
                 ];
             }
-            $groupedBookings[$tripId]['bookings'][] = $booking;
+            $groupedBookings[$bookingTripId]['bookings'][] = $booking;
         }
 
         return $this->success([

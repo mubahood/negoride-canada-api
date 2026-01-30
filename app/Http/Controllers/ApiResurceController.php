@@ -576,16 +576,28 @@ class ApiResurceController extends Controller
     }
 
 
-    public function trips_bookings()
+    public function trips_bookings(Request $request)
     {
         $u = auth('api')->user();
         if ($u == null) {
             return $this->error('User not found.');
         }
+        
+        $query = TripBooking::query();
+        
+        // If trip_id is provided, filter by it
+        if ($request->has('trip_id') && !empty($request->trip_id)) {
+            $query->where('trip_id', $request->trip_id);
+        } else {
+            // Otherwise, return bookings where user is driver or customer
+            $query->where(function($q) use ($u) {
+                $q->where('driver_id', $u->id)
+                  ->orWhere('customer_id', $u->id);
+            });
+        }
+        
         return $this->success(
-            TripBooking::where('driver_id', $u->id)
-                ->orWhere('customer_id', $u->id)
-                ->orderby('id', 'desc')->get(),
+            $query->orderby('id', 'desc')->get(),
             'Success'
         );
     }
