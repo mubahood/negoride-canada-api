@@ -264,7 +264,12 @@ class EmployeesController extends AdminController
         ])->default('Male');
         
         $form->textarea('current_address', 'Home Address')->rows(2)
-            ->help('Full residential address');
+            ->help('Full residential address OR GPS coordinates (format: latitude,longitude) for Support Contact location');
+        
+        // Support Contact GPS Location (for admins acting as support contacts)
+        $form->text('support_gps_location', 'Support Contact GPS Location')
+            ->placeholder('e.g., 43.6532,-79.3832')
+            ->help('Enter GPS coordinates (latitude,longitude) where this support contact is located. This will be shown in the app. Example: 43.6532,-79.3832 for Toronto');
 
         $form->html('</div></div>');
 
@@ -386,12 +391,66 @@ class EmployeesController extends AdminController
 
         $form->html('</div></div>');
 
-        // Hidden fields for unused services (set to No by default)
+        // ==========================================
+        // SECTION: Support Contact Services (Admin Only)
+        // ==========================================
+        $form->html('<div class="box box-solid box-danger">
+            <div class="box-header"><h4 class="box-title"><i class="fa fa-phone"></i> Support Contact Services (Admin Users Only)</h4></div>
+            <div class="box-body">');
+        
+        $form->html('<p class="text-muted"><strong>Note:</strong> Only users with "Admin" or "Super Admin" account type will appear as Support Contacts in the mobile app. Make sure to set the GPS location above for map display.</p>');
+        
+        $form->html('<div class="row">');
+        
+        // Ambulance Service
+        $form->html('<div class="col-md-4">');
+        $form->radio('is_ambulance', '🚑 Ambulance/Medical')->options([
+            '1' => 'Yes - Available',
+            'No' => 'No',
+        ])->default('No')->help('Medical emergency support');
+        $form->html('</div>');
+        
+        // Police Service
+        $form->html('<div class="col-md-4">');
+        $form->radio('is_police', '🚔 Police/Security')->options([
+            '1' => 'Yes - Available',
+            'No' => 'No',
+        ])->default('No')->help('Security & police support');
+        $form->html('</div>');
+        
+        // Fire Brigade Service
+        $form->html('<div class="col-md-4">');
+        $form->radio('is_firebrugade', '🚒 Fire Brigade')->options([
+            '1' => 'Yes - Available',
+            'No' => 'No',
+        ])->default('No')->help('Fire emergency support');
+        $form->html('</div>');
+        
+        $form->html('</div>'); // end row
+        
+        $form->html('<div class="row" style="margin-top: 15px;">');
+        
+        // Breakdown Service
+        $form->html('<div class="col-md-4">');
+        $form->radio('is_breakdown', '🔧 Breakdown/Towing')->options([
+            '1' => 'Yes - Available',
+            'No' => 'No',
+        ])->default('No')->help('Vehicle breakdown support');
+        $form->html('</div>');
+        
+        // Delivery Support
+        $form->html('<div class="col-md-4">');
+        $form->html('<p><strong>📦 Delivery Support</strong></p><p class="text-muted">Use the Delivery Service option in Driver Services section above.</p>');
+        $form->html('</div>');
+        
+        $form->html('</div>'); // end row
+        
+        $form->html('</div></div>');
+
+        // Hidden fields removed - now using visible fields above
         $form->hidden('is_boda')->default('No');
         $form->hidden('is_boda_approved')->default('No');
-        $form->hidden('is_ambulance')->default('No');
         $form->hidden('is_ambulance_approved')->default('No');
-        $form->hidden('is_police')->default('No');
         $form->hidden('is_police_approved')->default('No');
         $form->hidden('is_breakdown')->default('No');
         $form->hidden('is_breakdown_approved')->default('No');
@@ -414,6 +473,11 @@ class EmployeesController extends AdminController
             if ($form->is_car_approved == 'Yes' || $form->is_delivery_approved == 'Yes') {
                 $form->user_type = 'Driver';
                 $form->status = '1';
+            }
+            
+            // Use support GPS location for current_address if provided (for support contacts)
+            if ($form->support_gps_location && preg_match('/^-?\d+\.\d+,-?\d+\.\d+$/', trim($form->support_gps_location))) {
+                $form->current_address = trim($form->support_gps_location);
             }
         });
 

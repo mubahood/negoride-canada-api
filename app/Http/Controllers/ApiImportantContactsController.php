@@ -42,14 +42,13 @@ class ApiImportantContactsController extends ApiResurceController
             $serviceType = $request->input('service_type', null);
             $searchQuery = $request->input('search', null);
 
-            // Build query for important contacts
+            // Build query for important contacts (Admin users only)
             $query = Administrator::select([
                 'id',
                 'name',
                 'email', 
                 'phone_number',
                 'current_address',
-                'home_address',
                 'is_ambulance',
                 'is_police',
                 'is_delivery', 
@@ -58,6 +57,7 @@ class ApiImportantContactsController extends ApiResurceController
                 'sex',
                 'avatar'
             ])
+            ->whereIn('user_type', ['Admin', 'Super Admin'])
             ->whereNotNull('current_address')
             ->where('current_address', '!=', '')
             ->where(function($q) {
@@ -119,7 +119,6 @@ class ApiImportantContactsController extends ApiResurceController
                         'latitude' => $contactLat,
                         'longitude' => $contactLng,
                         'current_address' => $contact->current_address,
-                        'home_address' => $contact->home_address,
                         'distance_km' => round($distance, 2),
                         'is_ambulance' => $contact->is_ambulance === '1',
                         'is_police' => $contact->is_police === '1',

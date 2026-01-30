@@ -30,7 +30,7 @@ class PayoutRequestController extends Controller
                 ->recent()
                 ->get();
 
-            return $this->success('Payout requests retrieved successfully', $payoutRequests);
+            return $this->success($payoutRequests, 'Payout requests retrieved successfully');
         } catch (\Exception $e) {
             return $this->error('Error retrieving payout requests: ' . $e->getMessage(), 500);
         }
@@ -56,7 +56,7 @@ class PayoutRequestController extends Controller
                 return $this->error('Payout request not found', 404);
             }
 
-            return $this->success('Payout request retrieved successfully', $payoutRequest);
+            return $this->success($payoutRequest, 'Payout request retrieved successfully');
         } catch (\Exception $e) {
             return $this->error('Error retrieving payout request: ' . $e->getMessage(), 500);
         }
@@ -123,7 +123,7 @@ class PayoutRequestController extends Controller
             // Load relationships
             $payoutRequest->load('payoutAccount');
 
-            return $this->success('Payout request created successfully', $payoutRequest, 201);
+            return $this->success($payoutRequest, 'Payout request created successfully', 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->error('Validation error: ' . json_encode($e->errors()), 422);
         } catch (\Exception $e) {
@@ -155,7 +155,7 @@ class PayoutRequestController extends Controller
 
             $payoutRequest->cancel();
 
-            return $this->success('Payout request cancelled successfully', $payoutRequest);
+            return $this->success($payoutRequest, 'Payout request cancelled successfully');
         } catch (\Exception $e) {
             return $this->error('Error cancelling payout request: ' . $e->getMessage(), 500);
         }
@@ -186,7 +186,7 @@ class PayoutRequestController extends Controller
                 'pending_balance' => 0,   // Placeholder - integrate with your earnings system
             ];
 
-            return $this->success('Statistics retrieved successfully', $stats);
+            return $this->success($stats, 'Statistics retrieved successfully');
         } catch (\Exception $e) {
             return $this->error('Error retrieving statistics: ' . $e->getMessage(), 500);
         }
@@ -223,7 +223,7 @@ class PayoutRequestController extends Controller
 
             $payoutRequest->markAsCompleted($stripeTransferId, $stripePayoutId);
 
-            return $this->success('Payout request processed successfully', $payoutRequest);
+            return $this->success($payoutRequest, 'Payout request processed successfully');
         } catch (\Exception $e) {
             // Mark as failed if error occurs
             if (isset($payoutRequest)) {
@@ -257,7 +257,7 @@ class PayoutRequestController extends Controller
 
             $payoutRequests = $query->recent()->paginate(50);
 
-            return $this->success('Payout requests retrieved successfully', $payoutRequests);
+            return $this->success($payoutRequests, 'Payout requests retrieved successfully');
         } catch (\Exception $e) {
             return $this->error('Error retrieving payout requests: ' . $e->getMessage(), 500);
         }
