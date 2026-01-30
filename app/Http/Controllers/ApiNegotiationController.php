@@ -13,6 +13,7 @@ use Encore\Admin\Auth\Database\Administrator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Tymon\JWTAuth\Facades\JWTAuth;
 use Exception;
 
 class ApiNegotiationController extends Controller
@@ -20,11 +21,68 @@ class ApiNegotiationController extends Controller
     use ApiResponser;
 
     /**
+     * Get the authenticated user from JWT
+     * Tries multiple methods to ensure compatibility
+     */
+    protected function getAuthUser()
+    {
+        // Try request user resolver first (set by middleware)
+        $user = request()->user();
+        if ($user) return $user;
+        
+        // Try auth_user from request merge (backup method)
+        $user = request()->get('auth_user');
+        if ($user) return $user;
+        
+        // Try auth('api') guard
+        $user = auth('api')->user();
+        if ($user) return $user;
+        
+        // Try JWTAuth directly
+        try {
+            $user = JWTAuth::parseToken()->authenticate();
+            if ($user) return $user;
+        } catch (\Exception $e) {
+            // Ignore and try next method
+        }
+        
+        // Try manual token extraction from headers
+        try {
+            $headers = function_exists('getallheaders') ? getallheaders() : [];
+            $authHeader = '';
+            
+            if (isset($headers['Authorization'])) {
+                $authHeader = $headers['Authorization'];
+            } elseif (isset($headers['authorization'])) {
+                $authHeader = $headers['authorization'];
+            } elseif (isset($headers['token'])) {
+                $authHeader = 'Bearer ' . $headers['token'];
+            } elseif (isset($headers['Token'])) {
+                $authHeader = 'Bearer ' . $headers['Token'];
+            } elseif (isset($headers['tok'])) {
+                $authHeader = 'Bearer ' . $headers['tok'];
+            } elseif (isset($headers['Tok'])) {
+                $authHeader = 'Bearer ' . $headers['Tok'];
+            }
+            
+            if ($authHeader && str_starts_with($authHeader, 'Bearer ')) {
+                $token = substr($authHeader, 7);
+                $user = JWTAuth::setToken($token)->authenticate();
+                if ($user) return $user;
+            }
+        } catch (\Exception $e) {
+            Log::warning('Manual JWT auth failed: ' . $e->getMessage());
+        }
+        
+        return null;
+    }
+
+    /**
      * Simple test endpoint for debugging
      */
     public function debugTest(Request $r)
     {
-        $user = auth('api')->user();
+        $user = $this->getAuthUser();
         $authHeader = $r->header('Authorization');
         $bearerToken = $r->bearerToken();
         $allHeaders = function_exists('getallheaders') ? getallheaders() : [];
@@ -49,7 +107,7 @@ class ApiNegotiationController extends Controller
      */
     public function test()
     {
-        $user = auth('api')->user();
+        $user = $this->getAuthUser();
         return $this->success([
             'message' => 'Controller is working',
             'user_id' => $user ? $user->id : null,
@@ -64,8 +122,8 @@ class ApiNegotiationController extends Controller
      */
     public function create(Request $r)
     {
-        // Get authenticated user
-        $customer = auth('api')->user();
+        // Get authenticated user using centralized method
+        $customer = $this->getAuthUser();
         if ($customer == null) {
             return $this->error('User not authenticated.');
         }
@@ -187,32 +245,8 @@ class ApiNegotiationController extends Controller
      */
     public function updates(Request $r)
     {
-        // Try to authenticate manually first
-        $user = auth('api')->user();
-        if ($user == null) {
-            // Try manual authentication with JWT
-            try {
-                $headers = function_exists('getallheaders') ? getallheaders() : [];
-                $authHeader = '';
-                
-                if (isset($headers['Authorization'])) {
-                    $authHeader = $headers['Authorization'];
-                } elseif (isset($headers['authorization'])) {
-                    $authHeader = $headers['authorization'];
-                } elseif (isset($headers['Tok'])) {
-                    $authHeader = $headers['Tok'];
-                } elseif (isset($headers['tok'])) {
-                    $authHeader = $headers['tok'];
-                }
-                
-                if ($authHeader && str_starts_with($authHeader, 'Bearer ')) {
-                    $token = substr($authHeader, 7);
-                    $user = \Tymon\JWTAuth\Facades\JWTAuth::setToken($token)->authenticate();
-                }
-            } catch (Exception $e) {
-                // Ignore JWT errors for now
-            }
-        }
+        // Get authenticated user using centralized method
+        $user = $this->getAuthUser();
         
         if ($user == null) {
             return $this->error('User not authenticated.');
@@ -303,7 +337,7 @@ class ApiNegotiationController extends Controller
      */
     public function cancel(Request $r)
     {
-        $user = auth('api')->user();
+        $user = $this->getAuthUser();
         if ($user == null) {
             return $this->error('User not authenticated.');
         }
@@ -364,7 +398,7 @@ class ApiNegotiationController extends Controller
      */
     public function index(Request $r)
     {
-        $user = auth('api')->user();
+        $user = $this->getAuthUser();
         if ($user == null) {
             return $this->error('User not authenticated.');
         }
@@ -386,7 +420,7 @@ class ApiNegotiationController extends Controller
      */
     public function getNegotiationWithPayment($id)
     {
-        $user = auth('api')->user();
+        $user = $this->getAuthUser();
         if (!$user) {
             return $this->error('User not authenticated.');
         }
@@ -416,7 +450,7 @@ class ApiNegotiationController extends Controller
      */
     public function setAgreedPrice(Request $r, $id)
     {
-        $user = auth('api')->user();
+        $user = $this->getAuthUser();
         if (!$user) {
             return $this->error('User not authenticated.');
         }
