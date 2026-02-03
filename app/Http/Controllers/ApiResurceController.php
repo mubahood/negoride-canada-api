@@ -39,7 +39,8 @@ class ApiResurceController extends Controller
     //construcor function except login and register
     public function __construct()
     {
-        $this->middleware('auth:api', ['except' => ['login', 'register', 'otp_request', 'otp_verify']]);
+        // JWT middleware is applied in routes/api.php, no need for additional auth here
+        // $this->middleware('auth:api', ['except' => ['login', 'register', 'otp_request', 'otp_verify']]);
     }
 
     public function drivers(Request $r)
