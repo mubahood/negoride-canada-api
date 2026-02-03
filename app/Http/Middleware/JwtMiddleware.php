@@ -139,7 +139,7 @@ class JwtMiddleware extends BaseMiddleware
             if ($userId) {
                 \Illuminate\Support\Facades\Log::info('JwtMiddleware: Attempting user_id fallback', ['user_id' => $userId]);
                 try {
-                    $user = \\Encore\\Admin\\Auth\\Database\\Administrator::find($userId);
+                    $user = \Encore\Admin\Auth\Database\Administrator::find($userId);
                     if ($user) {
                         \Illuminate\Support\Facades\Log::info('JwtMiddleware: User authenticated via user_id fallback', [
                             'user_id' => $user->id,
@@ -151,7 +151,7 @@ class JwtMiddleware extends BaseMiddleware
                         });
                         return $next($request); // Allow request to proceed
                     }
-                } catch (\\Exception $userIdEx) {
+                } catch (\Exception $userIdEx) {
                     \Illuminate\Support\Facades\Log::error('JwtMiddleware: user_id fallback failed', [
                         'error' => $userIdEx->getMessage()
                     ]);
@@ -159,9 +159,9 @@ class JwtMiddleware extends BaseMiddleware
             }
             
             // If both token and user_id fail, return appropriate error
-            if ($e instanceof \\Tymon\\JWTAuth\\Exceptions\\TokenInvalidException) {
+            if ($e instanceof \Tymon\JWTAuth\Exceptions\TokenInvalidException) {
                 return response()->json(['status' => 'Token is Invalid']);
-            } else if ($e instanceof \\Tymon\\JWTAuth\\Exceptions\\TokenExpiredException) {
+            } else if ($e instanceof \Tymon\JWTAuth\Exceptions\TokenExpiredException) {
                 return response()->json(['status' => 'Token is Expired']);
             } else {
                 return Utils::error($e->getMessage());
