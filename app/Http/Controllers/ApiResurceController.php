@@ -579,7 +579,8 @@ class ApiResurceController extends Controller
 
     public function trips_bookings(Request $request)
     {
-        $u = auth('api')->user();
+        // Use request()->user() which is set by JwtMiddleware
+        $u = request()->user();
         if ($u == null) {
             return $this->error('User not found.');
         }

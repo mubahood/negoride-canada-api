@@ -402,7 +402,7 @@ class ApiChatController extends Controller
 
     public function negotiations(Request $r)
     {
-        $user = auth('api')->user();
+        $user = $this->getAuthUser();
         if ($user == null) {
             return $this->error('User not found.');
         }
