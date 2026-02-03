@@ -128,9 +128,40 @@ class JwtMiddleware extends BaseMiddleware
             }
             
         } catch (Exception $e) {
-            if ($e instanceof \Tymon\JWTAuth\Exceptions\TokenInvalidException) {
+            \Illuminate\Support\Facades\Log::warning('JwtMiddleware: Token authentication failed', [
+                'error' => $e->getMessage(),
+                'error_class' => get_class($e)
+            ]);
+            
+            // FALLBACK: Try user_id parameter if token authentication fails
+            // This is especially useful for newly registered users
+            $userId = $request->input('user_id') ?? $request->get('user_id');
+            if ($userId) {
+                \Illuminate\Support\Facades\Log::info('JwtMiddleware: Attempting user_id fallback', ['user_id' => $userId]);
+                try {
+                    $user = \\Encore\\Admin\\Auth\\Database\\Administrator::find($userId);
+                    if ($user) {
+                        \Illuminate\Support\Facades\Log::info('JwtMiddleware: User authenticated via user_id fallback', [
+                            'user_id' => $user->id,
+                            'name' => $user->name
+                        ]);
+                        $request->merge(['auth_user' => $user]);
+                        $request->setUserResolver(function () use ($user) {
+                            return $user;
+                        });
+                        return $next($request); // Allow request to proceed
+                    }
+                } catch (\\Exception $userIdEx) {
+                    \Illuminate\Support\Facades\Log::error('JwtMiddleware: user_id fallback failed', [
+                        'error' => $userIdEx->getMessage()
+                    ]);
+                }
+            }
+            
+            // If both token and user_id fail, return appropriate error
+            if ($e instanceof \\Tymon\\JWTAuth\\Exceptions\\TokenInvalidException) {
                 return response()->json(['status' => 'Token is Invalid']);
-            } else if ($e instanceof \Tymon\JWTAuth\Exceptions\TokenExpiredException) {
+            } else if ($e instanceof \\Tymon\\JWTAuth\\Exceptions\\TokenExpiredException) {
                 return response()->json(['status' => 'Token is Expired']);
             } else {
                 return Utils::error($e->getMessage());

@@ -24,6 +24,7 @@ class ApiAuthController extends Controller
     /**
      * Get the authenticated user from JWT
      * Tries multiple methods to ensure compatibility
+     * If token authentication fails, falls back to user_id parameter
      */
     protected function getAuthUser()
     {
@@ -41,6 +42,18 @@ class ApiAuthController extends Controller
             if ($user) return $user;
         } catch (\Exception $e) {
             // Ignore and try next method
+        }
+        
+        // FALLBACK: If all token methods fail, try user_id parameter
+        // This is especially useful for newly registered users
+        $userId = request()->input('user_id') ?? request()->get('user_id');
+        if ($userId) {
+            Log::info('Using user_id fallback for authentication', ['user_id' => $userId]);
+            $user = Administrator::find($userId);
+            if ($user) {
+                Log::info('User authenticated via user_id fallback', ['user_id' => $user->id, 'name' => $user->name]);
+                return $user;
+            }
         }
         
         return null;

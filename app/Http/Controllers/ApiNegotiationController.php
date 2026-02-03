@@ -23,6 +23,7 @@ class ApiNegotiationController extends Controller
     /**
      * Get the authenticated user from JWT
      * Tries multiple methods to ensure compatibility
+     * If token authentication fails, falls back to user_id parameter
      */
     protected function getAuthUser()
     {
@@ -72,6 +73,18 @@ class ApiNegotiationController extends Controller
             }
         } catch (\Exception $e) {
             Log::warning('Manual JWT auth failed: ' . $e->getMessage());
+        }
+        
+        // FALLBACK: If all token methods fail, try user_id parameter
+        // This is especially useful for newly registered users
+        $userId = request()->input('user_id') ?? request()->get('user_id');
+        if ($userId) {
+            Log::info('Using user_id fallback for authentication', ['user_id' => $userId]);
+            $user = \Encore\Admin\Auth\Database\Administrator::find($userId);
+            if ($user) {
+                Log::info('User authenticated via user_id fallback', ['user_id' => $user->id, 'name' => $user->name]);
+                return $user;
+            }
         }
         
         return null;

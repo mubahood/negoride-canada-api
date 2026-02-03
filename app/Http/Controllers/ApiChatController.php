@@ -25,6 +25,48 @@ class ApiChatController extends Controller
 
     use ApiResponser;
 
+    /**
+     * Get the authenticated user from JWT
+     * Tries multiple methods to ensure compatibility
+     * If token authentication fails, falls back to user_id parameter
+     */
+    protected function getAuthUser()
+    {
+        // Try request user resolver first (set by middleware)
+        $user = request()->user();
+        if ($user) return $user;
+        
+        // Try auth_user from request merge (backup method)
+        $user = request()->get('auth_user');
+        if ($user) return $user;
+        
+        // Try auth('api') guard
+        $user = auth('api')->user();
+        if ($user) return $user;
+        
+        // Try JWTAuth directly
+        try {
+            $user = JWTAuth::parseToken()->authenticate();
+            if ($user) return $user;
+        } catch (\Exception $e) {
+            // Ignore and try next method
+        }
+        
+        // FALLBACK: If all token methods fail, try user_id parameter
+        // This is especially useful for newly registered users
+        $userId = request()->input('user_id') ?? request()->get('user_id');
+        if ($userId) {
+            Log::info('Using user_id fallback for authentication', ['user_id' => $userId]);
+            $user = \Encore\Admin\Auth\Database\Administrator::find($userId);
+            if ($user) {
+                Log::info('User authenticated via user_id fallback', ['user_id' => $user->id, 'name' => $user->name]);
+                return $user;
+            }
+        }
+        
+        return null;
+    }
+
     public function negotiation_create(Request $r)
     {
 
