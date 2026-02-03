@@ -1099,6 +1099,21 @@ class ApiAuthController extends Controller
 
             $user->remember_token = $token;
             $user->save();
+            
+            // CRITICAL: Force a small delay to ensure database and cache consistency
+            // This ensures the token is fully committed before subsequent requests
+            usleep(100000); // 100ms delay
+            
+            // Verify the token works immediately after generation
+            try {
+                JWTAuth::setToken($token);
+                $verifiedUser = JWTAuth::authenticate();
+                if (!$verifiedUser || $verifiedUser->id != $user->id) {
+                    Log::error('Token verification failed immediately after registration for user: ' . $user->id);
+                }
+            } catch (\Exception $verifyEx) {
+                Log::error('Token verification exception after registration for user ' . $user->id . ': ' . $verifyEx->getMessage());
+            }
 
             // Prepare response data with token
             $responseData = $user->toArray();

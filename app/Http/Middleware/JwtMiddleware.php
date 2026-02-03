@@ -103,15 +103,43 @@ class JwtMiddleware extends BaseMiddleware
                 $payload = FacadesJWTAuth::parseToken()->getPayload();
                 \Illuminate\Support\Facades\Log::info('JwtMiddleware: Token payload', [
                     'sub' => $payload->get('sub'),
+                    'user_id' => $payload->get('user_id'),
+                    'iss' => $payload->get('iss'),
+                    'exp' => $payload->get('exp'),
                     'payload' => $payload->toArray(),
                 ]);
             } catch (\Exception $payloadEx) {
                 \Illuminate\Support\Facades\Log::error('JwtMiddleware: Failed to get payload', [
                     'error' => $payloadEx->getMessage(),
+                    'error_class' => get_class($payloadEx),
                 ]);
             }
 
-            $user = FacadesJWTAuth::parseToken()->authenticate();
+            // Authenticate user with token
+            try {
+                $user = FacadesJWTAuth::parseToken()->authenticate();
+            } catch (\Tymon\JWTAuth\Exceptions\TokenBlacklistedException $e) {
+                \Illuminate\Support\Facades\Log::error('JwtMiddleware: Token is blacklisted', [
+                    'error' => $e->getMessage()
+                ]);
+                throw $e; // Re-throw to handle below
+            } catch (\Tymon\JWTAuth\Exceptions\TokenInvalidException $e) {
+                \Illuminate\Support\Facades\Log::error('JwtMiddleware: Token is invalid', [
+                    'error' => $e->getMessage()
+                ]);
+                throw $e; // Re-throw to handle below
+            } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
+                \Illuminate\Support\Facades\Log::error('JwtMiddleware: Token is expired', [
+                    'error' => $e->getMessage()
+                ]);
+                throw $e; // Re-throw to handle below
+            } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
+                \Illuminate\Support\Facades\Log::error('JwtMiddleware: JWT Exception', [
+                    'error' => $e->getMessage(),
+                    'error_class' => get_class($e)
+                ]);
+                throw $e; // Re-throw to handle below
+            }
             
             \Illuminate\Support\Facades\Log::info('JwtMiddleware: User authenticated', [
                 'user_id' => $user ? $user->id : null,
@@ -130,7 +158,8 @@ class JwtMiddleware extends BaseMiddleware
         } catch (Exception $e) {
             \Illuminate\Support\Facades\Log::warning('JwtMiddleware: Token authentication failed', [
                 'error' => $e->getMessage(),
-                'error_class' => get_class($e)
+                'error_class' => get_class($e),
+                'trace' => $e->getTraceAsString()
             ]);
             
             // FALLBACK: Try user_id parameter if token authentication fails
