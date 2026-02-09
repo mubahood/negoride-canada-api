@@ -398,7 +398,7 @@ class ApiNegotiationController extends Controller
                 }
             }
 
-            return $this->success(null, 'Negotiation canceled successfully.');
+            return $this->success($negotiation, 'Negotiation canceled successfully.');
 
         } catch (\Throwable $e) {
             Log::error('Negotiation cancellation failed: ' . $e->getMessage());

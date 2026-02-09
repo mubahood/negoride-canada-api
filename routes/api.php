@@ -46,7 +46,6 @@ Route::middleware([JwtMiddleware::class])->group(function () {
     Route::post('negotiations-records', [ApiChatController::class, 'negotiations_records_create']); //==>2 
     Route::post('negotiations-accept', [ApiChatController::class, 'negotiations_accept']); //==>2 
     Route::post('negotiations-complete', [ApiChatController::class, 'negotiations_complete']); //==>2 
-    Route::post('negotiations-cancel', [ApiChatController::class, 'negotiations_cancel']); //==>2 
     Route::get('negotiations', [ApiChatController::class, 'negotiations']); //==>2 
     Route::get('negotiations-records', [ApiChatController::class, 'negotiations_records']); //==>2 
 
