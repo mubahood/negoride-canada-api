@@ -238,7 +238,7 @@ class ApiNegotiationController extends Controller
                 try {
                     Utils::send_message(
                         $driver->phone_number,
-                        "RIDESHARE! New trip request from {$customer->name}. Price: UGX " . number_format($r->initial_price) . ". Open the app to respond."
+                        "NEGORIDE! New trip request from {$customer->name}. Price: C$" . number_format($r->initial_price / 100, 2) . ". Open the app to respond."
                     );
                 } catch (\Throwable $smsError) {
                     Log::warning('Failed to send SMS notification: ' . $smsError->getMessage());

@@ -530,20 +530,30 @@ class ApiAuthController extends Controller
             'location' => $r->current_address,
         ]);
 
-        // Fetch up to 1000 online drivers with valid GPS coordinates
-        // Reduced strict restrictions - only require service enabled, not necessarily approved
-        $drivers = Administrator::where('status', 1)
-            ->where('ready_for_trip', 'Yes')
+        // Build driver query based on service type
+        $query = Administrator::where('status', 1)
             ->where('id', '!=', $u->id)
-            ->whereNotNull('current_address') 
-            ->where($automobileFieldKey, 'Yes')
-            ->where(function($query) use ($automobileFieldValue) {
-                // Allow both approved drivers AND drivers pending approval
-                $query->where($automobileFieldValue, 'Yes')
-                      ->orWhere($automobileFieldValue, 'No');
-            })
-            ->limit(1000) // Increased from 25 to 1000
-            ->orderBy('updated_at', 'desc') // Get most recently active drivers first
+            ->whereNotNull('current_address')
+            ->where('current_address', '!=', '')
+            ->where('current_address', 'like', '%,%') // Must have valid GPS format
+            ->where('ready_for_trip', 'Yes'); // Only show drivers who are online
+
+        // For car/special car: any registered driver who is online (in Canada, all drivers have cars)
+        // For specialized services: require the specific automobile flag
+        if ($_automobileType == 'car' || $_automobileType == 'special car' || $_automobileType == 'special car hire') {
+            $query->where(function($q) {
+                $q->where('user_type', 'like', '%driver%')
+                   ->orWhere('user_type', 'like', '%Driver%')
+                   ->orWhere('is_car', 'Yes');
+            });
+        } else {
+            // For specialized services, require the specific flag
+            $query->where($automobileFieldKey, 'Yes');
+        }
+
+        $drivers = $query
+            ->limit(1000)
+            ->orderBy('updated_at', 'desc')
             ->get();
 
         Log::info('📊 Drivers found in database', [

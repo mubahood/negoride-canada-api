@@ -70,7 +70,7 @@ class ApiChatController extends Controller
     public function negotiation_create(Request $r)
     {
 
-        $customer = $this->getAuthUser();
+        $customer = auth('api')->user();
         if ($customer == null) {
             return $this->error('Custom account not found.');
         }
@@ -193,7 +193,7 @@ class ApiChatController extends Controller
     public function negotiations_records_create(Request $r)
     {
 
-        $sender = $this->getAuthUser();
+        $sender = auth('api')->user();
         if ($sender == null) {
             return $this->error('User not found.');
         }
@@ -260,7 +260,7 @@ class ApiChatController extends Controller
     public function negotiations_accept(Request $r)
     {
 
-        $sender = $this->getAuthUser();
+        $sender = auth('api')->user();
         if ($sender == null) {
             return $this->error('User not found.');
         }
@@ -471,7 +471,7 @@ class ApiChatController extends Controller
 
     public function negotiations_records(Request $r)
     {
-        $user = $this->getAuthUser();
+        $user = auth('api')->user();
         if ($user == null) {
             return $this->error('User not found.');
         }
@@ -498,7 +498,15 @@ class ApiChatController extends Controller
     public function chat_heads_create(Request $r)
     {
 
-        $sender = $this->getAuthUser();
+        $sender = auth('api')->user();
+        if ($sender == null) {
+            return $this->error('User not found.');
+        }
+
+        if ($sender == null) {
+            return $this->error('User not found.');
+        }
+
         if ($sender == null) {
             return $this->error('User not found.');
         }
@@ -584,7 +592,11 @@ class ApiChatController extends Controller
     public function chat_send(Request $r)
     {
 
-        $sender = $this->getAuthUser();
+        $sender = auth('api')->user();
+        if ($sender == null) {
+            return $this->error('User not found.');
+        }
+
         if ($sender == null) {
             return $this->error('User not found.');
         }
@@ -626,7 +638,7 @@ class ApiChatController extends Controller
 
     public function chat_messages(Request $r)
     {
-        $u = $this->getAuthUser();
+        $u = auth('api')->user();
         if ($u == null) {
             return $this->error('User not found.');
         }
@@ -651,7 +663,7 @@ class ApiChatController extends Controller
     public function chat_heads(Request $r)
     {
 
-        $u = $this->getAuthUser();
+        $u = auth('api')->user();
 
         if ($u == null) {
             return $this->error('User not found.');
@@ -945,7 +957,7 @@ class ApiChatController extends Controller
      */
     public function negotiations_refresh_payment(Request $r)
     {
-        $u = $this->getAuthUser();
+        $u = auth('api')->user();
         if (!$u) {
             return $this->error('Unauthorized');
         }
@@ -1002,7 +1014,7 @@ class ApiChatController extends Controller
      */
     public function negotiations_check_payment(Request $r)
     {
-        $u = $this->getAuthUser();
+        $u = auth('api')->user();
         if (!$u) {
             return $this->error('Unauthorized');
         }
