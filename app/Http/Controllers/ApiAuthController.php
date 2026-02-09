@@ -673,7 +673,7 @@ class ApiAuthController extends Controller
 
     public function trips_create(Request $r)
     {
-        $query = auth('api')->user();
+        $query = $this->getAuthUser();
         if ($query == null) {
             return $this->error('User not found.');
         }

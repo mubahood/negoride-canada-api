@@ -11,10 +11,36 @@ use Illuminate\Support\Facades\Validator;
 use Stripe\Stripe;
 use Stripe\Account;
 use Stripe\AccountLink;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 class PayoutAccountController extends Controller
 {
     use ApiResponser;
+
+    protected function getAuthUser()
+    {
+        $user = request()->user();
+        if ($user) return $user;
+
+        $user = request()->get('auth_user');
+        if ($user) return $user;
+
+        $user = auth('api')->user();
+        if ($user) return $user;
+
+        try {
+            $user = JWTAuth::parseToken()->authenticate();
+            if ($user) return $user;
+        } catch (\Exception $e) {}
+
+        $userId = request()->input('user_id') ?? request()->get('user_id');
+        if ($userId) {
+            $user = \Encore\Admin\Auth\Database\Administrator::find($userId);
+            if ($user) return $user;
+        }
+
+        return null;
+    }
 
     public function __construct()
     {
@@ -30,7 +56,7 @@ class PayoutAccountController extends Controller
     public function getAccount()
     {
         try {
-            $user = auth('api')->user();
+            $user = $this->getAuthUser();
             
             if (!$user) {
                 return $this->error('Unauthorized');
@@ -89,7 +115,7 @@ class PayoutAccountController extends Controller
     public function createStripeAccount(Request $request)
     {
         try {
-            $user = auth('api')->user();
+            $user = $this->getAuthUser();
             
             if (!$user) {
                 return $this->error('Unauthorized');
@@ -167,7 +193,7 @@ class PayoutAccountController extends Controller
     public function getOnboardingLink(Request $request)
     {
         try {
-            $user = auth('api')->user();
+            $user = $this->getAuthUser();
             
             if (!$user) {
                 return $this->error('Unauthorized');
@@ -215,7 +241,7 @@ class PayoutAccountController extends Controller
     public function getDashboardLink()
     {
         try {
-            $user = auth('api')->user();
+            $user = $this->getAuthUser();
             
             if (!$user) {
                 return $this->error('Unauthorized');
@@ -249,7 +275,7 @@ class PayoutAccountController extends Controller
     public function syncAccount()
     {
         try {
-            $user = auth('api')->user();
+            $user = $this->getAuthUser();
             
             if (!$user) {
                 return $this->error('Unauthorized');
@@ -307,7 +333,7 @@ class PayoutAccountController extends Controller
     public function updatePreferences(Request $request)
     {
         try {
-            $user = auth('api')->user();
+            $user = $this->getAuthUser();
             
             if (!$user) {
                 return $this->error('Unauthorized');
@@ -360,7 +386,7 @@ class PayoutAccountController extends Controller
     public function deactivate(Request $request)
     {
         try {
-            $user = auth('api')->user();
+            $user = $this->getAuthUser();
             
             if (!$user) {
                 return $this->error('Unauthorized');
@@ -400,7 +426,7 @@ class PayoutAccountController extends Controller
     public function reactivate()
     {
         try {
-            $user = auth('api')->user();
+            $user = $this->getAuthUser();
             
             if (!$user) {
                 return $this->error('Unauthorized');

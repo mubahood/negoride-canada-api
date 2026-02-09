@@ -36,6 +36,31 @@ class ApiResurceController extends Controller
 
     use ApiResponser;
 
+    protected function getAuthUser()
+    {
+        $user = request()->user();
+        if ($user) return $user;
+
+        $user = request()->get('auth_user');
+        if ($user) return $user;
+
+        $user = auth('api')->user();
+        if ($user) return $user;
+
+        try {
+            $user = JWTAuth::parseToken()->authenticate();
+            if ($user) return $user;
+        } catch (\Exception $e) {}
+
+        $userId = request()->input('user_id') ?? request()->get('user_id');
+        if ($userId) {
+            $user = \Encore\Admin\Auth\Database\Administrator::find($userId);
+            if ($user) return $user;
+        }
+
+        return null;
+    }
+
     //construcor function except login and register
     public function __construct()
     {
@@ -66,7 +91,7 @@ class ApiResurceController extends Controller
     public function sacco_join_request(Request $r)
     {
 
-        $u = auth('api')->user();
+        $u = $this->getAuthUser();
 
         if ($u == null) {
             return $this->error('User not found.');

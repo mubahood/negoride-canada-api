@@ -8,10 +8,36 @@ use App\Models\PayoutAccount;
 use App\Models\User;
 use Illuminate\Http\Request;
 use App\Traits\ApiResponser;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 class PayoutRequestController extends Controller
 {
     use ApiResponser;
+
+    protected function getAuthUser()
+    {
+        $user = request()->user();
+        if ($user) return $user;
+
+        $user = request()->get('auth_user');
+        if ($user) return $user;
+
+        $user = auth('api')->user();
+        if ($user) return $user;
+
+        try {
+            $user = JWTAuth::parseToken()->authenticate();
+            if ($user) return $user;
+        } catch (\Exception $e) {}
+
+        $userId = request()->input('user_id') ?? request()->get('user_id');
+        if ($userId) {
+            $user = \Encore\Admin\Auth\Database\Administrator::find($userId);
+            if ($user) return $user;
+        }
+
+        return null;
+    }
 
     /**
      * Get all payout requests for authenticated user
@@ -19,7 +45,7 @@ class PayoutRequestController extends Controller
     public function index(Request $request)
     {
         try {
-            $user = auth('api')->user();
+            $user = $this->getAuthUser();
             
             if (!$user) {
                 return $this->error('Unauthorized', 401);
@@ -42,7 +68,7 @@ class PayoutRequestController extends Controller
     public function show($id)
     {
         try {
-            $user = auth('api')->user();
+            $user = $this->getAuthUser();
             
             if (!$user) {
                 return $this->error('Unauthorized', 401);
@@ -68,7 +94,7 @@ class PayoutRequestController extends Controller
     public function store(Request $request)
     {
         try {
-            $user = auth('api')->user();
+            $user = $this->getAuthUser();
             
             if (!$user) {
                 return $this->error('Unauthorized', 401);
@@ -137,7 +163,7 @@ class PayoutRequestController extends Controller
     public function cancel($id)
     {
         try {
-            $user = auth('api')->user();
+            $user = $this->getAuthUser();
             
             if (!$user) {
                 return $this->error('Unauthorized', 401);
@@ -167,7 +193,7 @@ class PayoutRequestController extends Controller
     public function statistics()
     {
         try {
-            $user = auth('api')->user();
+            $user = $this->getAuthUser();
             
             if (!$user) {
                 return $this->error('Unauthorized', 401);

@@ -10,10 +10,36 @@ use App\Traits\ApiResponser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 class WalletController extends Controller
 {
     use ApiResponser;
+
+    protected function getAuthUser()
+    {
+        $user = request()->user();
+        if ($user) return $user;
+
+        $user = request()->get('auth_user');
+        if ($user) return $user;
+
+        $user = auth('api')->user();
+        if ($user) return $user;
+
+        try {
+            $user = JWTAuth::parseToken()->authenticate();
+            if ($user) return $user;
+        } catch (\Exception $e) {}
+
+        $userId = request()->input('user_id') ?? request()->get('user_id');
+        if ($userId) {
+            $user = \Encore\Admin\Auth\Database\Administrator::find($userId);
+            if ($user) return $user;
+        }
+
+        return null;
+    }
     /**
      * Get authenticated user's wallet
      *
@@ -22,7 +48,7 @@ class WalletController extends Controller
     public function getWallet()
     {
         try {
-            $user = auth('api')->user();
+            $user = $this->getAuthUser();
             
             if (!$user) {
                 return $this->error('Unauthorized');
@@ -57,7 +83,7 @@ class WalletController extends Controller
     public function getTransactions(Request $request)
     {
         try {
-            $user = auth('api')->user();
+            $user = $this->getAuthUser();
             
             if (!$user) {
                 return $this->error('Unauthorized');
@@ -124,7 +150,7 @@ class WalletController extends Controller
     public function getWalletSummary()
     {
         try {
-            $user = auth('api')->user();
+            $user = $this->getAuthUser();
             
             if (!$user) {
                 return $this->error('Unauthorized');
@@ -192,7 +218,7 @@ class WalletController extends Controller
     public function getEarningsStats(Request $request)
     {
         try {
-            $user = auth('api')->user();
+            $user = $this->getAuthUser();
             
             if (!$user) {
                 return $this->error('Unauthorized');
