@@ -30,7 +30,9 @@ class JwtMiddleware extends BaseMiddleware
 
     public function handle($request, Closure $next)
     { 
-        if (!$request->expectsJson()) {
+        // Only bypass auth for non-API requests that don't expect JSON
+        // API routes must ALWAYS go through authentication
+        if (!$request->expectsJson() && !$request->is('api/*')) {
             return $next($request);
         } 
 
@@ -116,6 +118,7 @@ class JwtMiddleware extends BaseMiddleware
             }
 
             // Authenticate user with token
+            $user = null;
             try {
                 $user = FacadesJWTAuth::parseToken()->authenticate();
             } catch (\Tymon\JWTAuth\Exceptions\TokenBlacklistedException $e) {
@@ -140,6 +143,22 @@ class JwtMiddleware extends BaseMiddleware
                 ]);
                 throw $e; // Re-throw to handle below
             }
+
+            // If token was valid but user not found in DB, try user_id fallback
+            // This handles cases where token was issued on a different server/DB
+            if (!$user) {
+                \Illuminate\Support\Facades\Log::warning('JwtMiddleware: Token valid but user not found in DB, trying user_id fallback');
+                $userId = $request->input('user_id') ?? $request->get('user_id') ?? $request->header('user_id');
+                if ($userId) {
+                    $user = \Encore\Admin\Auth\Database\Administrator::find($userId);
+                    if ($user) {
+                        \Illuminate\Support\Facades\Log::info('JwtMiddleware: User authenticated via user_id fallback (token user not in DB)', [
+                            'user_id' => $user->id,
+                            'name' => $user->name
+                        ]);
+                    }
+                }
+            }
             
             \Illuminate\Support\Facades\Log::info('JwtMiddleware: User authenticated', [
                 'user_id' => $user ? $user->id : null,
@@ -153,6 +172,14 @@ class JwtMiddleware extends BaseMiddleware
                 $request->setUserResolver(function () use ($user) {
                     return $user;
                 });
+            } else {
+                // No user found via token or user_id — return clear error
+                \Illuminate\Support\Facades\Log::error('JwtMiddleware: No user could be resolved from token or user_id');
+                return response()->json([
+                    'code' => 0,
+                    'message' => 'Authentication failed: user not found. Please log in again.',
+                    'data' => null
+                ], 401);
             }
             
         } catch (Exception $e) {
@@ -163,8 +190,8 @@ class JwtMiddleware extends BaseMiddleware
             ]);
             
             // FALLBACK: Try user_id parameter if token authentication fails
-            // This is especially useful for newly registered users
-            $userId = $request->input('user_id') ?? $request->get('user_id');
+            // Check body, query params, and headers for user_id
+            $userId = $request->input('user_id') ?? $request->get('user_id') ?? $request->header('user_id');
             if ($userId) {
                 \Illuminate\Support\Facades\Log::info('JwtMiddleware: Attempting user_id fallback', ['user_id' => $userId]);
                 try {

@@ -26,6 +26,7 @@ Route::group([
     $router->resource('treatment-records', TreatmentRecordController::class);
     $router->resource('route-stages', RouteStageController::class); 
     $router->resource('negotiations', NegotiationController::class);
+    $router->resource('scheduled-bookings', ScheduledBookingAdminController::class);
 
     $router->resource('gens', GenController::class);
     $router->resource('trips', TripController::class);

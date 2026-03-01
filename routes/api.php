@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ApiAuthController;
+use App\Http\Controllers\ApiBookingController;
 use App\Http\Controllers\ApiChatController;
 use App\Http\Controllers\ApiImportantContactsController;
 use App\Http\Controllers\ApiNegotiationController;
@@ -140,6 +141,21 @@ Route::middleware([JwtMiddleware::class])->group(function () {
     Route::POST("negotiation-updates", [ApiAuthController::class, "negotiation_updates"]);
 
     Route::POST("refresh-status", [ApiAuthController::class, "refresh_status"]);
+
+    // ── Scheduled Bookings ──────────────────────────────────────────────
+    Route::get('bookings',                               [ApiBookingController::class, 'index']);
+    Route::post('bookings',                              [ApiBookingController::class, 'create']);
+    Route::get('bookings/{id}',                          [ApiBookingController::class, 'show']);
+    Route::post('bookings/{id}/cancel',                  [ApiBookingController::class, 'cancel']);
+    Route::post('bookings/{id}/propose-price',           [ApiBookingController::class, 'proposePrice']);
+    Route::post('bookings/{id}/accept-price',            [ApiBookingController::class, 'acceptPrice']);
+    Route::post('bookings/{id}/accept-original-price',   [ApiBookingController::class, 'acceptOriginalPrice']);
+    Route::post('bookings/{id}/assign-driver',           [ApiBookingController::class, 'assignDriver']);
+    Route::post('bookings/{id}/start',                   [ApiBookingController::class, 'startTrip']);
+    Route::post('bookings/{id}/complete',                [ApiBookingController::class, 'completeTrip']);
+    Route::post('bookings/{id}/refresh-payment',         [ApiBookingController::class, 'refreshPayment']);
+    Route::post('bookings/{id}/check-payment',           [ApiBookingController::class, 'checkPayment']);
+    Route::post('bookings/{id}/mark-paid',               [ApiBookingController::class, 'markPaid']);
 });
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
