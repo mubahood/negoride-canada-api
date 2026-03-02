@@ -123,7 +123,7 @@ class PayoutAccountController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'email' => 'required|email',
-                'phone' => 'nullable|string',
+                'phone' => ['nullable', 'string', 'regex:/^\+?1?\d{10,15}$/'],
                 'business_type' => 'nullable|in:individual,company',
             ]);
 

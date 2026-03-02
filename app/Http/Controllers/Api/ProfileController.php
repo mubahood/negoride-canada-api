@@ -278,7 +278,7 @@ class ProfileController extends Controller
             }
 
             $validator = Validator::make($request->all(), [
-                'phone_number' => 'required|string|min:10|max:20|unique:admin_users,phone_number,' . $user->id,
+                'phone_number' => ['required', 'string', 'min:10', 'max:20', 'regex:/^\+?1?\d{10}$/', 'unique:admin_users,phone_number,' . $user->id],
                 'password' => 'required|string', // Require password for security
                 'country_code' => 'sometimes|string|max:5',
                 'country_name' => 'sometimes|string|max:50',

@@ -665,35 +665,48 @@ class Utils extends Model
 
     public static function phone_number_is_valid($phone_number)
     {
-        return true;
         $phone_number = Utils::prepare_phone_number($phone_number);
-        if (substr($phone_number, 0, 4) != "+256") {
+
+        // Must start with +1 for Canada/US
+        if (substr($phone_number, 0, 2) !== '+1') {
             return false;
         }
 
-        if (strlen($phone_number) != 13) {
+        // +1 followed by exactly 10 digits = 12 chars total
+        if (strlen($phone_number) !== 12) {
+            return false;
+        }
+
+        // Ensure all characters after +1 are digits
+        if (!preg_match('/^\+1\d{10}$/', $phone_number)) {
             return false;
         }
 
         return true;
     }
+
     public static function prepare_phone_number($phone_number)
     {
         $original = $phone_number;
-        //$phone_number = '+256783204665';
-        //0783204665
-        if (strlen($phone_number) > 10) {
-            $phone_number = str_replace("+", "", $phone_number);
-            $phone_number = substr($phone_number, 3, strlen($phone_number));
-        } else {
-            if (substr($phone_number, 0, 1) == "0") {
-                $phone_number = substr($phone_number, 1, strlen($phone_number));
-            }
+        // Remove all non-digit characters except +
+        $phone_number = preg_replace('/[^0-9+]/', '', $phone_number);
+
+        if (str_starts_with($phone_number, '+1') && strlen($phone_number) === 12) {
+            // Already formatted correctly: +1XXXXXXXXXX
+            return $phone_number;
+        } elseif (str_starts_with($phone_number, '1') && strlen($phone_number) === 11) {
+            // Missing + prefix: 1XXXXXXXXXX
+            return '+' . $phone_number;
+        } elseif (!str_starts_with($phone_number, '+') && strlen($phone_number) === 10) {
+            // Bare 10-digit number
+            return '+1' . $phone_number;
+        } elseif (str_starts_with($phone_number, '0') && strlen($phone_number) === 11) {
+            // Leading 0 — strip and add +1
+            return '+1' . substr($phone_number, 1);
         }
-        if (strlen($phone_number) != 9) {
-            return $original;
-        }
-        return "+256" . $phone_number;
+
+        // Return original if we can't normalize
+        return $original;
     }
 
 
